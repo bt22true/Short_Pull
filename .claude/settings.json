@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__remote-postgres__query",
+      "Bash(node scripts/classify.mjs)",
+      "Bash(node scripts/build-board.mjs)",
+      "Bash(node scripts/verify-actions.mjs)",
+      "Bash(node --test scripts/test/classify.test.mjs)"
+    ]
+  }
+}

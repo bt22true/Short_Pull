@@ -1,0 +1,5 @@
+# Raw pulls are ephemeral and may reference customer orders — never commit them.
+data/*.json
+# Per-run outputs are regenerated; a stale board is a trap.
+dist/
+node_modules/

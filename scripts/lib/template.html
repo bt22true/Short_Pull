@@ -1,0 +1,478 @@
+<title>Short Pull Audit Board</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  :root{
+    --paper:#F5F4F0; --card:#FFFFFF; --ink:#20262E; --muted:#6E7681; --line:#E3E1DB;
+    --accent:#2549C7; --accent-soft:#E8EDFB; --good:#177A46; --good-soft:#E3F2E9;
+    --warn:#A96A12; --warn-soft:#F7EEDD; --crit:#BB3A2E; --crit-soft:#F9E9E7;
+    --purple:#6D48B5; --purple-soft:#EFE9F9; --slate:#55636F; --slate-soft:#EAEEF1;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:var(--paper);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+  button{font:inherit;cursor:pointer}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  header{position:sticky;top:0;z-index:20;background:var(--paper);border-bottom:1px solid var(--line);padding:14px 20px 0}
+  .hrow{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  .hrow h1{font-size:19px;margin:0;letter-spacing:-.01em}
+  .runmeta{color:var(--muted);font-size:12.5px}
+  .tiles{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 12px}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 14px;min-width:118px}
+  .tile b{display:block;font-size:19px;font-weight:650;letter-spacing:-.01em}
+  .tile span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  .tile.owed b{color:var(--crit)} .tile.rep b{color:var(--purple)} .tile.done b{color:var(--good)}
+  .progress{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin:0 0 10px}
+  .progress i{display:block;height:100%;width:0;background:var(--good);transition:width .3s}
+  nav{display:flex;gap:4px;flex-wrap:wrap;padding-bottom:10px}
+  nav button{background:none;border:1px solid transparent;border-radius:7px;padding:5px 11px;color:var(--muted);font-size:13px}
+  nav button:hover{background:var(--card)}
+  nav button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  nav button .n{font-family:var(--mono);font-size:11.5px;opacity:.75;margin-left:5px}
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 20px;color:var(--muted);font-size:13px}
+  .toolbar input[type=search],.toolbar select{font:inherit;padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)}
+  .toolbar label{display:flex;gap:5px;align-items:center;cursor:pointer}
+  main{max-width:1120px;margin:0 auto;padding:0 20px 120px}
+  .kbdhint{color:var(--muted);font-size:12px;margin:2px 0 10px}
+  kbd{font-family:var(--mono);font-size:11px;background:var(--card);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px}
+  /* card */
+  .po{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden;transition:opacity .3s, transform .3s}
+  .po.focus{outline:2px solid var(--accent);outline-offset:1px}
+  .po.decided{opacity:.55}
+  .po.gone{opacity:0;transform:translateX(28px)}
+  .porow{display:grid;grid-template-columns:150px 1fr auto;gap:12px;padding:11px 14px;cursor:pointer;align-items:center}
+  .porow:hover{background:#FBFAF8}
+  .poid{font-family:var(--mono);font-size:13px;font-weight:600;overflow-wrap:anywhere}
+  .poid small{display:block;color:var(--muted);font-weight:400;font-size:11px}
+  .pomain .l1{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .pomain .l2{color:var(--muted);font-size:12.5px;margin-top:2px;display:flex;gap:10px;flex-wrap:wrap}
+  .chip{font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap}
+  .flag{font-size:11px;padding:1px 7px;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+  .flag.money{border-color:var(--purple);color:var(--purple);background:var(--purple-soft)}
+  .flag.warnf{border-color:var(--warn);color:var(--warn);background:var(--warn-soft)}
+  .stateChip{font-size:11px;color:var(--slate);background:var(--slate-soft);padding:2px 8px;border-radius:99px}
+  .poside{text-align:right}
+  .poside .exp{font-family:var(--mono);font-weight:650;font-size:14px}
+  .poside .age{color:var(--muted);font-size:11.5px}
+  .decidedTag{font-size:11px;font-weight:700;color:var(--good)}
+  /* detail */
+  .detail{display:none;border-top:1px solid var(--line);padding:14px;background:#FDFCFA}
+  .po.open .detail{display:block}
+  .cols{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:14px}
+  @media(max-width:900px){.cols{grid-template-columns:1fr}}
+  .col h4{margin:0 0 7px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+  .col{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:11px;font-size:13px;min-width:0}
+  .col p{margin:0 0 7px}
+  .kv{color:var(--muted)} .kv b{color:var(--ink);font-weight:600}
+  table{border-collapse:collapse;width:100%;font-size:12.5px}
+  th{text-align:left;color:var(--muted);font-weight:500;font-size:11px;padding:3px 6px;border-bottom:1px solid var(--line)}
+  td{padding:4px 6px;border-bottom:1px solid #F0EEE9;vertical-align:top}
+  td.r,th.r{text-align:right}
+  .ok{color:var(--good);font-weight:700}.bad{color:var(--crit);font-weight:700}.part{color:var(--warn);font-weight:700}
+  .tblwrap{overflow-x:auto}
+  .sugg{margin-top:12px;background:var(--accent-soft);border:1px solid #C9D6F5;border-radius:8px;padding:10px 12px;font-size:13px}
+  .sugg b{color:var(--accent)}
+  .synop{white-space:pre-wrap;margin:6px 0 0;color:#2c3442;font-size:12.5px}
+  .evid{margin:8px 0 0;padding-left:18px;color:#4a5260;font-size:12.5px}
+  .evid li{margin-bottom:2px}
+  .actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+  .actions button{border:1px solid var(--line);background:var(--card);border-radius:7px;padding:7px 12px;font-size:13px;font-weight:550}
+  .actions button:hover{border-color:var(--ink)}
+  .actions .primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .actions .primary:hover{filter:brightness(1.1)}
+  .subform{display:none;margin-top:10px;padding:10px;border:1px dashed var(--line);border-radius:8px;background:var(--card);font-size:13px}
+  .subform.on{display:block}
+  .subform label{display:block;margin:4px 0}
+  .subform input[type=date],.subform input[type=text]{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:6px}
+  .presets button{padding:4px 10px;margin-right:6px}
+  /* footer */
+  footer{position:fixed;bottom:0;left:0;right:0;background:var(--ink);color:#fff;padding:10px 20px;display:flex;gap:14px;align-items:center;z-index:30}
+  footer .cnt{font-family:var(--mono)}
+  footer button{background:#fff;color:var(--ink);border:0;border-radius:7px;padding:8px 14px;font-weight:650}
+  footer button.ghost{background:transparent;color:#fff;border:1px solid #ffffff55}
+  footer .streak{margin-left:auto;font-size:13px;color:#ffffffbb}
+  #exportBox{display:none;position:fixed;bottom:60px;left:20px;right:20px;max-width:860px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;z-index:31;box-shadow:0 10px 40px #0003}
+  #exportBox.on{display:block}
+  #exportBox textarea{width:100%;height:140px;font:11.5px var(--mono)}
+  .empty{color:var(--muted);text-align:center;padding:50px 0;font-size:15px}
+  /* phone layout */
+  @media(max-width:640px){
+    header{padding:10px 12px 0}
+    .hrow h1{font-size:17px}
+    .tiles{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+    .tile{min-width:96px;padding:6px 10px}
+    .tile b{font-size:16px}
+    nav{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}
+    nav button{white-space:nowrap}
+    .toolbar{padding:10px 12px;gap:8px}
+    .toolbar input[type=search]{width:100%}
+    main{padding:0 10px 150px}
+    .kbdhint{display:none}
+    .porow{display:block;padding:10px 12px}
+    .poid{display:flex;gap:8px;align-items:baseline;margin-bottom:3px}
+    .poid small{display:inline}
+    .poside{display:flex;gap:12px;align-items:baseline;text-align:left;margin-top:5px}
+    .detail{padding:10px}
+    footer{flex-wrap:wrap;gap:8px;padding:8px 12px}
+    footer .streak{display:none}
+    #exportBox{left:8px;right:8px;bottom:96px}
+  }
+  /* execute view */
+  .xsec{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+  .xsec h3{margin:0 0 4px;font-size:15px}
+  .xsec .sub{color:var(--muted);font-size:12.5px;margin:0 0 10px}
+  .xitem{display:flex;gap:10px;padding:8px 6px;border-bottom:1px solid #F0EEE9;align-items:flex-start}
+  .xitem input[type=checkbox]{margin-top:3px;width:16px;height:16px}
+  .xitem.done label{text-decoration:line-through;color:var(--muted)}
+  .xitem .why{color:var(--muted);font-size:12px;margin-top:2px}
+  @media print{header,.toolbar,footer,#exportBox,.kbdhint{display:none!important}body{background:#fff}.xsec{border:none;padding:0}}
+  .confetti{position:fixed;top:-12px;width:9px;height:14px;z-index:99;pointer-events:none;animation:fall 2.4s linear forwards}
+  @keyframes fall{to{transform:translateY(105vh) rotate(720deg);opacity:.1}}
+  @media(prefers-reduced-motion:reduce){.confetti{display:none}.po{transition:none}}
+</style>
+
+<header>
+  <div class="hrow">
+    <h1>📦 Short Pull Audit</h1>
+    <span class="runmeta" id="runmeta"></span>
+  </div>
+  <div class="tiles" id="tiles"></div>
+  <div class="progress"><i id="prog"></i></div>
+  <nav id="tabs"></nav>
+</header>
+<div class="toolbar">
+  <input type="search" id="q" placeholder="Search LIC / part / order / tag…">
+  <select id="officeSel"><option value="">All offices</option></select>
+  <select id="reasonSel">
+    <option value="">All reasons</option>
+    <option value="couldnt_find">couldn't find</option>
+    <option value="not_enough">not enough on hand</option>
+    <option value="other">other</option>
+  </select>
+  <select id="sortSel">
+    <option value="prio">Sort: priority</option>
+    <option value="age">Sort: most recent</option>
+    <option value="exp">Sort: $ exposure</option>
+    <option value="cnt">Sort: incident count</option>
+  </select>
+  <label><input type="checkbox" id="hideSnoozed" checked> hide snoozed</label>
+  <label><input type="checkbox" id="newOnly"> 🆕 new incidents only</label>
+  <label><input type="checkbox" id="hideDecided"> hide decided</label>
+</div>
+<main>
+  <div class="kbdhint"><kbd>j</kbd>/<kbd>k</kbd> navigate · <kbd>enter</kbd> expand · <kbd>a</kbd> accept plan · <kbd>p</kbd> edit plan · <kbd>v</kbd> resolved · <kbd>s</kbd> snooze · <kbd>x</kbd> skip · <kbd>u</kbd> undo</div>
+  <div id="list"></div>
+</main>
+<footer id="footer"></footer>
+<div id="exportBox">
+  <b style="font-size:13px">Action plan — paste this back to Claude</b>
+  <textarea id="exportTa" readonly></textarea>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const BUCKETS = [
+  ['manual_add_suspect','Manual add?','crit'],
+  ['receiving_error_suspect','Receiving?','warn'],
+  ['phantom_inventory','Phantom stock','crit'],
+  ['no_supply','No supply','purple'],
+  ['record_shortfall','Record shortfall','warn'],
+  ['needs_research','Needs research','slate'],
+  ['self_resolved','Self-resolved','good'],
+];
+const BMETA = Object.fromEntries(BUCKETS.map(b=>[b[0],b]));
+const KINDICON = {relook:'🔎',count:'🔢',reverse_adjustment:'↩️',verify_receiving:'🚚',track_order:'📦',other:'📝'};
+const $ = (s)=>document.querySelector(s);
+const esc = (s)=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const money = (v)=>'$'+Math.abs(+v||0).toFixed(2);
+const d10 = (s)=>String(s||'').slice(0,10);
+// Persistence: decisions, phase, and checked-off items survive reloads on this device.
+const LS = (()=>{ try{ localStorage.setItem('__t','1'); localStorage.removeItem('__t'); return localStorage; }
+  catch(_){ const m=new Map(); return {getItem:k=>m.has(k)?m.get(k):null,setItem:(k,v)=>m.set(k,v),removeItem:k=>m.delete(k)}; }})();
+const KEY = 'short-pull-audit-'+DATA.run_id;
+const plan = new Map();           // lic_rec_id -> decision
+let tab = 'actionable', focusIdx = -1, streak = 0;
+let phase = LS.getItem(KEY+'-phase') || 'triage';
+try { for (const d of JSON.parse(LS.getItem(KEY+'-plan')||'[]')) plan.set(d.lic_rec_id, d); } catch(_){}
+const savePlan = ()=>LS.setItem(KEY+'-plan', JSON.stringify([...plan.values()]));
+const isDone = (k)=>LS.getItem(KEY+'-done-'+k)==='1';
+window.markDone = (k,el)=>{ LS.setItem(KEY+'-done-'+k, el.checked?'1':'0'); el.closest('.xitem').classList.toggle('done', el.checked); renderFooter(); };
+
+const ACTIONABLE = new Set(BUCKETS.map(b=>b[0]).filter(b=>b!=='self_resolved'));
+const lics = DATA.lics;
+
+function tone(t){return{crit:['var(--crit)','var(--crit-soft)'],warn:['var(--warn)','var(--warn-soft)'],good:['var(--good)','var(--good-soft)'],purple:['var(--purple)','var(--purple-soft)'],slate:['var(--slate)','var(--slate-soft)']}[t]}
+
+function visible(){
+  const q = $('#q').value.toLowerCase(), off = $('#officeSel').value, rs = $('#reasonSel').value;
+  let arr = lics.filter(c=>{
+    if(tab==='actionable'){ if(!ACTIONABLE.has(c.bucket)) return false; }
+    else if(c.bucket!==tab) return false;
+    if($('#hideSnoozed').checked && c.snoozed) return false;
+    if($('#newOnly').checked && !(c.new_incidents&&c.new_incidents.length&&c.state)) return false;
+    if($('#hideDecided').checked && plan.has(c.id)) return false;
+    if(off && !c.incidents.some(i=>i.office===off)) return false;
+    if(rs && !(c.reasons[rs]>0)) return false;
+    if(q){ const hay=(c.li_code+' '+c.description+' '+(c.manufacturer||'')+' '
+      +c.incidents.map(i=>(i.order?i.order.id:'')+' '+(i.bike_tag||'')).join(' ')).toLowerCase();
+      if(!hay.includes(q)) return false; }
+    return true;
+  });
+  const s=$('#sortSel').value;
+  arr.sort((a,b)=> s==='age'?(a.age_days??999)-(b.age_days??999) : s==='exp'?b.exposure.value-a.exposure.value : s==='cnt'?b.incident_count-a.incident_count : b.prio-a.prio);
+  return arr;
+}
+
+function chipHtml(c){ const m=BMETA[c.bucket]||['','?','slate']; const [fg,bg]=tone(m[2]); return `<span class="chip" style="color:${fg};background:${bg}">${m[1]}</span>`; }
+
+function flagsHtml(c){
+  let h='';
+  if(c.new_incidents&&c.new_incidents.length&&c.state) h+=`<span class="flag" style="border-color:var(--crit);color:var(--crit);background:var(--crit-soft)">🆕 ${c.new_incidents.length} new</span>`;
+  if(c.flags.includes('repeat_offender')) h+=`<span class="flag warnf">🔁 ${c.movement.short_pulls_180d}× in 180d</span>`;
+  if(c.flags.includes('order_waiting')) h+=`<span class="flag money">🧍 customer waiting</span>`;
+  if(c.flags.includes('high_value')) h+=`<span class="flag money">💰 high value</span>`;
+  if(c.flags.includes('transfer')) h+=`<span class="flag">🔄 transfer</span>`;
+  if(c.flags.includes('multi_office')) h+=`<span class="flag">🏢 multi-office</span>`;
+  if(c.flags.includes('discontinued')) h+=`<span class="flag warnf">discontinued</span>`;
+  if(c.flags.includes('partially_resolved')) h+=`<span class="flag" style="color:var(--good);border-color:var(--good)">partly shipped since</span>`;
+  if(c.state&&c.state.changed) h+=`<span class="flag warnf">⚡ changed</span>`;
+  return h;
+}
+
+function stateHtml(c){
+  if(!c.state) return '';
+  const s=c.state;
+  if(s.status==='action_pending') return `<span class="stateChip">🛠 ${s.pending_items} action(s) pending since ${esc(s.issued_run||'')}</span>`;
+  if(s.status==='snoozed') return `<span class="stateChip">😴 snoozed → ${esc(s.snooze_until||'')}</span>`;
+  if(s.status==='resolved') return `<span class="stateChip">✅ previously resolved</span>`;
+  if(s.status==='skipped') return `<span class="stateChip">skipped before</span>`;
+  return '';
+}
+
+function reasonBadge(i){
+  const parts=[];
+  for(const [k,v] of Object.entries(i.reasons)){
+    const lab={couldnt_find:"couldn't find",not_enough:'not enough',manual:'manual',other:'other',unspecified:'?'}[k]||k;
+    parts.push((v>1?v+'× ':'')+lab);
+  }
+  return parts.join(', ');
+}
+
+function incidentRow(i){
+  const st = i.resolved_by_ship?'<span class="ok" title="order line later shipped">✓</span>'
+    : i.item_status==='VOID'?'<span class="bad">✗</span>':'<span class="part">◐</span>';
+  const what = i.order?`ord ${esc(i.order.id)}${i.bike_tag?' · '+esc(i.bike_tag):''}`
+    : i.shipment.type==='TRANSFER'?'transfer':esc(i.shipment.tnw_type||i.shipment.type||'');
+  return `<tr><td>${st}</td><td class="num">${d10(i.at)}</td><td>${esc(reasonBadge(i))}${i.attempts>1?` <span class="num" style="color:var(--muted)">(${i.attempts} tries)</span>`:''}</td><td>${what}</td><td>${esc(i.bin||i.office||'')}</td></tr>`;
+}
+
+function binRow(b){
+  return `<tr><td>${esc(b.office)}</td><td>${esc(b.bin)}${b.is_transit?' 🔄':''}${b.is_clearing?' 🧹':''}</td><td class="r num">${b.qty}</td><td class="r num">${b.available}</td><td class="r num">${b.demand||''}</td></tr>`;
+}
+function adjRow(a){
+  const q = a.qty>0?`<span class="ok">+${a.qty}</span>`:a.qty<0?`<span class="bad">${a.qty}</span>`:a.qty;
+  return `<tr><td class="num">${d10(a.at)}</td><td>${esc(a.type||a.rec_type||'')}${a.is_count?' 🔢':''}</td><td class="r num">${q}</td><td>${esc(a.entered_by||'')}</td></tr>`+(a.note?`<tr><td></td><td colspan="3" style="color:var(--muted);font-size:11.5px">↳ ${esc(String(a.note).slice(0,90))}</td></tr>`:'');
+}
+function poRow(l){
+  return `<tr><td class="num">PO ${esc(l.po_id)}</td><td>${esc(l.vendor||'')}</td><td class="r num">${l.received!==undefined?l.received+'/'+l.qty:l.remaining+' open'}</td><td class="num">${d10(l.eta||l.updated||l.date)}</td></tr>`;
+}
+
+function card(c,i){
+  const dec = plan.get(c.id);
+  return `<div class="po ${dec?'decided':''}" data-id="${c.id}" data-i="${i}">
+  <div class="porow" onclick="toggle('${c.id}')">
+    <div class="poid">${esc(c.li_code)}<small>${esc(c.manufacturer||c.type)}</small></div>
+    <div class="pomain">
+      <div class="l1">${chipHtml(c)}<b>${esc(c.description)}</b>${flagsHtml(c)}${stateHtml(c)}${dec?`<span class="decidedTag">→ ${dec.action}</span>`:''}</div>
+      <div class="l2"><span>${c.incident_count} short pull${c.incident_count>1?'s':''} · ${esc(Object.entries(c.reasons).map(([k,v])=>v+'× '+({couldnt_find:"couldn't find",not_enough:'not enough',manual:'manual',other:'other',unspecified:'?'}[k]||k)).join(', '))}</span></div>
+    </div>
+    <div class="poside"><div class="exp">${c.exposure.value?money(c.exposure.value):''}</div><div class="age">${c.age_days??'?'}d ago</div></div>
+  </div>
+  <div class="detail">
+    <div class="cols">
+      <div class="col"><h4>The short pulls</h4>
+        <div class="tblwrap"><table><tr><th></th><th>date</th><th>reason</th><th>for</th><th>bin</th></tr>${c.incidents.slice(-8).map(incidentRow).join('')}</table></div>
+        <p class="kv" style="margin-top:6px">✓ = that order line later shipped · unit cost <b class="num">${money(c.unit_cost)}</b> · price <b class="num">${money(c.price)}</b></p>
+      </div>
+      <div class="col"><h4>Inventory picture</h4>
+        ${c.inventory.bins.length?`<div class="tblwrap"><table><tr><th>office</th><th>bin</th><th class="r">qty</th><th class="r">avail</th><th class="r">demand</th></tr>${c.inventory.bins.slice(0,7).map(binRow).join('')}</table></div>`:`<p class="kv"><b>Nothing on hand in any bin.</b></p>`}
+        ${c.adjustments.length?`<p class="kv" style="margin:8px 0 4px"><b>Adjustments (12 mo):</b></p><div class="tblwrap"><table><tr><th>date</th><th>type</th><th class="r">Δ</th><th>by</th></tr>${c.adjustments.slice(0,5).map(adjRow).join('')}</table></div>`:'<p class="kv" style="margin-top:8px">No inventory adjustments in 12 months.</p>'}
+      </div>
+      <div class="col"><h4>Supply &amp; movement</h4>
+        ${c.supply.open.length?`<p class="kv"><b>On order:</b></p><div class="tblwrap"><table>${c.supply.open.map(l=>`<tr><td class="num">PO ${esc(l.po_id)}</td><td>${esc(l.vendor||'')}</td><td class="r num">${l.remaining}</td><td class="num">${d10(l.eta)||'no ETA'}</td></tr>`).join('')}</table></div>`:'<p class="kv">Nothing on order.</p>'}
+        ${c.supply.recent.length?`<p class="kv" style="margin-top:8px"><b>Recent PO lines:</b></p><div class="tblwrap"><table><tr><th>po</th><th>vendor</th><th class="r">rcvd</th><th>touched</th></tr>${c.supply.recent.slice(0,4).map(poRow).join('')}</table></div>`:''}
+        <p class="kv" style="margin-top:8px">Movement 180d: <b>${c.movement.ok_ships_180d}</b> good ships · <b>${c.movement.short_pulls_180d}</b> short pulls${c.movement.ships_after_last?` · <b class="ok">${c.movement.ships_after_last} since last incident</b>`:''}</p>
+      </div>
+    </div>
+    <div class="sugg"><b>${c.synopsis?'Synopsis':'Suggested: '+esc(c.suggestion.action)}</b>${c.synopsis?'':' — '+esc(c.suggestion.reason)}
+      ${c.synopsis?`<div class="synop">${esc(c.synopsis)}</div>`:''}
+      <ul class="evid">${c.evidence.map(e=>`<li>${esc(e)}</li>`).join('')}</ul>
+    </div>
+    <div class="actions">
+      ${c.suggestion.items.length?`<button class="primary" onclick="accept('${c.id}')">✅ Accept plan (${c.suggestion.items.length}) <kbd>a</kbd></button>`:''}
+      <button onclick="toggleSub('${c.id}','plan')">📝 Edit plan <kbd>p</kbd></button>
+      <button onclick="decide('${c.id}','resolve')">✔ Resolved <kbd>v</kbd></button>
+      <button onclick="toggleSub('${c.id}','snooze')">😴 Snooze <kbd>s</kbd></button>
+      <button onclick="decide('${c.id}','skip')">Skip <kbd>x</kbd></button>
+      ${dec?`<button onclick="undecide('${c.id}')">↩ Undo</button>`:''}
+    </div>
+    <div class="subform" id="sn-${c.id}">
+      <b>Snooze until:</b> <span class="presets">
+      ${[7,14,30].map(d=>`<button onclick="snooze('${c.id}',${d})">${d}d</button>`).join('')}</span>
+      <input type="date" id="snd-${c.id}"> <button onclick="snoozeDate('${c.id}')">set</button>
+    </div>
+    <div class="subform" id="pl-${c.id}">
+      <b>Action plan for ${esc(c.li_code)}:</b>
+      ${c.suggestion.items.map((it,ci)=>`<label><input type="checkbox" data-ci="${ci}" checked> ${KINDICON[it.kind]||'📝'} ${esc(it.label)}</label>`).join('')}
+      <label>Extra step: <input type="text" id="extra-${c.id}" style="width:60%" placeholder="e.g. ask Nic where the batch went"></label>
+      <label>Note: <input type="text" id="note-${c.id}" style="width:60%"></label>
+      <button class="primary" onclick="customPlan('${c.id}')">Add to plan</button>
+    </div>
+  </div></div>`;
+}
+
+function render(){
+  const el = $('#list');
+  document.querySelector('.toolbar').style.display = phase==='execute'?'none':'flex';
+  document.querySelector('.kbdhint').style.display = phase==='execute'?'none':'block';
+  if(phase==='execute'){ el.innerHTML = executeHtml(); renderHeader([]); return; }
+  const arr = visible();
+  if(!arr.length){ el.innerHTML = `<div class="empty">${plan.size?'🎉 Bucket clear — nice work.':'Nothing here.'}</div>`; }
+  else el.innerHTML = arr.map((c,i)=>card(c,i)).join('');
+  renderHeader(arr);
+}
+window.setPhase=(p)=>{ phase=p; LS.setItem(KEY+'-phase',p); window.scrollTo(0,0); render(); };
+
+// ---------- Execute view: the physical work list ----------
+function planItems(d, c){
+  return (d.items||[]).map((it,i)=>({label:it.label, kind:it.kind, key:'i'+i}));
+}
+function executeHtml(){
+  const ds=[...plan.values()];
+  const byId=(id)=>lics.find(c=>c.id===id);
+  const groups={relook:[],count:[],reverse_adjustment:[],verify_receiving:[],track_order:[],other:[]};
+  let total=0, done=0;
+  for(const d of ds.filter(x=>x.action==='plan')){ const c=byId(d.lic_rec_id); if(!c) continue;
+    for(const it of planItems(d,c)){ const k=d.lic_rec_id+'-'+it.key; total++; if(isDone(k)) done++;
+      (groups[it.kind]||groups.other).push({k,it,c,d}); } }
+  const sec=(kind,title,sub)=>{ const g=groups[kind]; if(!g.length) return '';
+    return `<div class="xsec"><h3>${KINDICON[kind]} ${title} — ${g.filter(x=>isDone(x.k)).length}/${g.length}</h3><p class="sub">${sub}</p>
+    ${g.map(({k,it,c,d})=>`<div class="xitem ${isDone(k)?'done':''}"><input type="checkbox" ${isDone(k)?'checked':''} onchange="markDone('${k}',this)"><div><label>${esc(it.label)}</label><div class="why">${esc(c.li_code)} · ${esc(c.description)}${d.note?' · '+esc(d.note):''}</div></div></div>`).join('')}</div>`; };
+  const resolved=ds.filter(d=>d.action==='resolve').length, snoozes=ds.filter(d=>d.action==='snooze').length;
+  return `
+  ${sec('relook','Relooks','Physically search — check the pull bin, transit and clearing bins, the build area, and anything received that day.')}
+  ${sec('count','Cycle counts','Count and post the adjustment in aAce. The next run sees the adjustment and auto-verifies — no need to report back.')}
+  ${sec('reverse_adjustment','Adjustments to review','Open the adjustment in aAce, check what it claimed vs reality, reverse or correct it.')}
+  ${sec('verify_receiving','Receiving to verify','Pull the packing slip / ask the receiver. Tick off here when checked — this one does not auto-verify.')}
+  ${sec('track_order','Orders to track down','Reorder, substitute, or talk to the customer. Auto-verifies when the order line ships.')}
+  ${sec('other','Other steps','Custom steps you added on the cards.')}
+  ${resolved||snoozes?`<div class="xsec"><h3>✅ Resolved ${resolved} · 😴 Snoozed ${snoozes}</h3><p class="sub">Recorded in state when you hand the plan to Claude.</p></div>`:''}
+  <div class="xsec"><h3>🤝 Hand off to Claude</h3>
+    <p class="sub">Copies this run's decisions + progress. Paste it into the Claude chat — it records state, writes checklists, and next run auto-verifies counts, reversals, and re-ships against fresh aAce data.</p>
+    <button onclick="document.getElementById('copyBtn').click()" style="border:1px solid var(--line);background:var(--card);border-radius:7px;padding:8px 14px;font-weight:600">📋 Copy for Claude (${ds.length} decisions)</button>
+  </div>`;
+}
+
+function renderHeader(arr){
+  const t = DATA.totals;
+  $('#runmeta').textContent = `run ${DATA.run_id} · pulled ${new Date(DATA.pulled_at).toLocaleString()} · showing last ${DATA.config.BOARD_WINDOW_DAYS}d of short pulls`;
+  $('#tiles').innerHTML = [
+    `<div class="tile"><b>${t.lics}</b><span>LICs</span></div>`,
+    `<div class="tile"><b>${t.incidents}</b><span>short pulls</span></div>`,
+    `<div class="tile owed"><b>${money(t.exposure)}</b><span>cost exposure</span></div>`,
+    `<div class="tile rep"><b>${t.repeat_offenders}</b><span>repeat offenders</span></div>`,
+    `<div class="tile done"><b>${plan.size}</b><span>triaged today</span></div>`,
+  ].join('');
+  const denom = lics.filter(c=>ACTIONABLE.has(c.bucket)&&!c.snoozed).length||1;
+  $('#prog').style.width = Math.min(100,100*plan.size/denom)+'%';
+  const tabs=[['actionable','Actionable',lics.filter(c=>ACTIONABLE.has(c.bucket)&&!c.snoozed).length],
+    ...BUCKETS.map(b=>[b[0],b[1],DATA.summary[b[0]]||0]).filter(x=>x[2]>0)];
+  $('#tabs').innerHTML = phase==='execute'
+    ? `<button class="on">Step 2 · Do the work</button><button onclick="setPhase('triage')">← back to Step 1 · Triage</button>`
+    : tabs.map(([id,lab,n])=>`<button class="${tab===id?'on':''}" onclick="setTab('${id}')">${lab}${n!==''?`<span class="n">${n}</span>`:''}</button>`).join('');
+  renderFooter();
+}
+function renderFooter(){
+  const f=$('#footer');
+  if(phase==='execute'){
+    const ds=[...plan.values()]; const keys=[];
+    for(const d of ds.filter(x=>x.action==='plan')){ const c=lics.find(cc=>cc.id===d.lic_rec_id); if(c) for(const it of planItems(d,c)) keys.push(d.lic_rec_id+'-'+it.key); }
+    const done=keys.filter(isDone).length;
+    f.innerHTML=`<button onclick="setPhase('triage')" class="ghost">← Triage</button>
+      <span class="cnt">${done}/${keys.length} items done</span>
+      <button onclick="window.print()" class="ghost">Print work list</button>
+      <button id="copyBtn">Copy for Claude</button>
+      <button class="ghost" id="showBtn">Show JSON</button>`;
+  } else {
+    f.innerHTML=`<span class="cnt"><b>${plan.size}</b> decisions</span>
+      <button class="primary" style="background:var(--good);color:#fff;border:0;border-radius:7px;padding:8px 14px;font-weight:650" onclick="setPhase('execute')">Next step: do the work →</button>
+      <button id="copyBtn">Copy for Claude</button>
+      <span class="streak">${streak>=3?`🔥 ${streak} in a row`:''}</span>`;
+  }
+  const cb=$('#copyBtn'); if(cb) cb.onclick=doExport;
+  const sb=$('#showBtn'); if(sb) sb.onclick=()=>{ $('#exportTa').value=exportJSON(); $('#exportBox').classList.toggle('on'); };
+}
+
+// ---- interactions
+window.toggle=(id)=>{ const el=document.querySelector(`.po[data-id="${id}"]`); el.classList.toggle('open'); focusIdx=+el.dataset.i; hilite(); };
+window.setTab=(t)=>{ tab=t; focusIdx=-1; render(); };
+window.toggleSub=(id,which)=>{ const el=document.getElementById((which==='snooze'?'sn-':'pl-')+id); document.querySelector(`.po[data-id="${id}"]`).classList.add('open'); el.classList.toggle('on'); };
+window.decide=(id,action,extra={})=>{
+  const c = lics.find(x=>x.id===id);
+  const d = { lic_rec_id:id, li_code:c.li_code, action, ...extra };
+  plan.set(id,d); streak++; savePlan();
+  const el=document.querySelector(`.po[data-id="${id}"]`);
+  el.classList.add('gone');
+  setTimeout(()=>{ render(); maybeConfetti(); },280);
+};
+window.accept=(id)=>{ const c=lics.find(x=>x.id===id); decide(id,'plan',{items:c.suggestion.items}); };
+window.customPlan=(id)=>{
+  const c=lics.find(x=>x.id===id);
+  const boxes=[...document.querySelectorAll(`#pl-${id} input[type=checkbox]`)];
+  const items=boxes.filter(b=>b.checked).map(b=>c.suggestion.items[+b.dataset.ci]);
+  const extra=document.getElementById('extra-'+id).value.trim();
+  if(extra) items.push({kind:'other',label:extra,expected_after:{manual:true}});
+  if(!items.length) return;
+  decide(id,'plan',{items,note:document.getElementById('note-'+id).value||undefined});
+};
+window.undecide=(id)=>{ plan.delete(id); streak=0; savePlan(); render(); };
+window.snooze=(id,days)=>{ const dt=new Date(DATA.run_id); dt.setDate(dt.getDate()+days); decide(id,'snooze',{snooze_until:dt.toISOString().slice(0,10)}); };
+window.snoozeDate=(id)=>{ const v=document.getElementById('snd-'+id).value; if(v) decide(id,'snooze',{snooze_until:v}); };
+function maybeConfetti(){
+  const remaining = visible().filter(c=>!plan.has(c.id)).length;
+  if(remaining===0 && plan.size>0) burst();
+}
+function burst(){ for(let i=0;i<60;i++){ const c=document.createElement('div'); c.className='confetti';
+  c.style.left=Math.random()*100+'vw'; c.style.background=['#2549C7','#177A46','#A96A12','#BB3A2E','#6D48B5'][i%5];
+  c.style.animationDelay=(Math.random()*0.7)+'s'; document.body.appendChild(c); setTimeout(()=>c.remove(),3200);} }
+function hilite(){ document.querySelectorAll('.po.focus').forEach(e=>e.classList.remove('focus'));
+  const el=document.querySelector(`.po[data-i="${focusIdx}"]`); if(el){el.classList.add('focus'); el.scrollIntoView({block:'nearest'});} }
+document.addEventListener('keydown',(e)=>{
+  if(phase==='execute') return;
+  if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+  const arr=visible(); if(!arr.length) return;
+  const cur=()=>arr[Math.max(0,Math.min(focusIdx,arr.length-1))];
+  if(e.key==='j'){ focusIdx=Math.min(focusIdx+1,arr.length-1); hilite(); }
+  else if(e.key==='k'){ focusIdx=Math.max(focusIdx-1,0); hilite(); }
+  else if(e.key==='Enter'&&focusIdx>=0){ toggle(cur().id); }
+  else if(e.key==='a'&&focusIdx>=0){ const c=cur(); if(c.suggestion.items.length) accept(c.id); }
+  else if(e.key==='p'&&focusIdx>=0){ toggleSub(cur().id,'plan'); }
+  else if(e.key==='v'&&focusIdx>=0){ decide(cur().id,'resolve'); }
+  else if(e.key==='s'&&focusIdx>=0){ snooze(cur().id,14); }
+  else if(e.key==='x'&&focusIdx>=0){ decide(cur().id,'skip'); }
+  else if(e.key==='u'){ const last=[...plan.keys()].pop(); if(last) undecide(last); }
+});
+function exportJSON(){
+  const doneKeys={}; const ds=[...plan.values()];
+  for(const d of ds.filter(x=>x.action==='plan')){ const c=lics.find(cc=>cc.id===d.lic_rec_id); if(!c) continue;
+    for(const it of planItems(d,c)) if(isDone(d.lic_rec_id+'-'+it.key)) (doneKeys[d.lic_rec_id]=doneKeys[d.lic_rec_id]||[]).push(it.label); }
+  return JSON.stringify({run_id:DATA.run_id,exported_at:new Date().toISOString(),decisions:ds,completed:doneKeys},null,1);
+}
+function doExport(){ const j=exportJSON(); $('#exportTa').value=j; $('#exportBox').classList.add('on');
+  try{ navigator.clipboard.writeText(j); }catch(_){ $('#exportTa').select(); try{document.execCommand('copy');}catch(__){} } }
+for(const id of ['q','officeSel','reasonSel','sortSel','hideSnoozed','newOnly','hideDecided']) $('#'+id).addEventListener('input',render);
+// office options
+const offices=[...new Set(lics.flatMap(c=>c.incidents.map(i=>i.office)))].filter(Boolean).sort();
+$('#officeSel').innerHTML='<option value="">All offices</option>'+offices.map(v=>`<option>${esc(v)}</option>`).join('');
+render();
+</script>
