@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Inject data/classified.json into the board template → dist/board.html
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const data = JSON.parse(readFileSync('data/classified.json', 'utf8'));
@@ -35,5 +36,21 @@ const payload = JSON.stringify(data)
   .replace(new RegExp('\\u2029', 'g'), '\\\\u2029');
 const html = tpl.replace('/*__DATA__*/null', payload);
 if (!existsSync('dist')) mkdirSync('dist', { recursive: true });
+
+// A single bad escape in the template kills the whole inline script and the
+// board renders blank — syntax-check the built script before shipping it.
+const js = html.slice(html.lastIndexOf('<script>') + 8, html.lastIndexOf('</script>'));
+const tmp = 'dist/.board-script-check.js';
+writeFileSync(tmp, js);
+try {
+  execFileSync(process.execPath, ['--check', tmp], { stdio: 'pipe' });
+} catch (e) {
+  console.error('BOARD SCRIPT SYNTAX ERROR — not writing dist/board.html');
+  console.error(String(e.stderr));
+  process.exit(1);
+} finally {
+  rmSync(tmp, { force: true });
+}
+
 writeFileSync('dist/board.html', html);
 console.log(`dist/board.html — ${data.totals.lics} LICs, run ${data.run_id}, ${(html.length / 1024).toFixed(0)} KB`);
