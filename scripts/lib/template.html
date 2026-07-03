@@ -179,7 +179,22 @@
 </div>
 
 <script>
-const DATA = /*__DATA__*/null;
+// Data comes from /api/board (Netlify Blobs) so a daily refresh is one PUT,
+// not a redeploy. A build can still inline data for local/artifact previews.
+const INLINE_DATA = /*__DATA__*/null;
+(async () => {
+  let data = INLINE_DATA;
+  if (!data) {
+    try { const r = await fetch('/api/board', { cache: 'no-store' }); if (r.ok) data = await r.json(); } catch (_) {}
+  }
+  if (!data) {
+    document.getElementById('list').innerHTML = '<div class="empty">Could not load board data (/api/board). Try a hard refresh; if it persists, the morning run may not have published yet.</div>';
+    return;
+  }
+  boot(data);
+})();
+
+function boot(DATA) {
 const BUCKETS = [
   ['stuck_transfer_suspect','Stuck transfer','purple'],
   ['manual_add_suspect','Manual add?','crit'],
@@ -341,6 +356,8 @@ function card(c,i){
     <div class="sugg" style="margin:0 0 10px"><b>${c.synopsis?'Synopsis':'Suggested: '+esc(c.suggestion.action)}</b>${c.synopsis?'':' — '+esc(c.suggestion.reason)}
       ${c.synopsis?`<div class="synop">${esc(c.synopsis)}</div>`:''}
       ${c.recommended?`<div class="synop" style="margin-top:8px">→ <b style="color:var(--accent)">Recommended:</b> ${esc(c.recommended)}</div>`:''}
+      ${c.suggestion.action==='plan'&&c.suggestion.items.length?`<div class="synop" style="margin-top:8px;color:var(--muted)"><b style="color:var(--ink)">Accepting queues:</b><br>${c.suggestion.items.map(it=>`${KINDICON[it.kind]||'📝'} ${esc(it.label.length>120?it.label.slice(0,119)+'…':it.label)}`).join('<br>')}</div>`
+        :c.suggestion.action==='resolve'?`<div class="synop" style="margin-top:8px;color:var(--good)"><b>Accepting marks this resolved — no work queued.</b></div>`:''}
     </div>
     <details class="fold"><summary><b>The short pulls</b> — ${c.incident_count} incident${c.incident_count>1?'s':''}, last ${d10(c.last_incident_at)}${pickers.length?' · '+esc(pickers.join(', ')):''}</summary>
       <div class="foldbody">
@@ -369,9 +386,11 @@ function card(c,i){
       <ul class="evid">${c.evidence.map(e=>`<li>${esc(e)}</li>`).join('')}</ul>
     </div>
     <div class="actions">
-      ${c.suggestion.items.length?`<button class="primary" onclick="accept('${c.id}')">✅ Accept plan (${c.suggestion.items.length}) <kbd>a</kbd></button>`:''}
+      ${c.suggestion.action==='resolve'
+        ?`<button class="primary" style="background:var(--good);border-color:var(--good)" onclick="decide('${c.id}','resolve')">✔ Mark resolved — as recommended <kbd>a</kbd></button>`
+        :c.suggestion.items.length?`<button class="${c.suggestion.action==='plan'?'primary':''}" onclick="accept('${c.id}')">✅ Accept plan (${c.suggestion.items.length}) <kbd>a</kbd></button>`:''}
       <button onclick="toggleSub('${c.id}','plan')">📝 Edit plan <kbd>p</kbd></button>
-      <button onclick="decide('${c.id}','resolve')">✔ Resolved <kbd>v</kbd></button>
+      ${c.suggestion.action==='resolve'?'':`<button onclick="decide('${c.id}','resolve')">✔ Resolved <kbd>v</kbd></button>`}
       <button onclick="toggleSub('${c.id}','snooze')">😴 Snooze <kbd>s</kbd></button>
       <button onclick="decide('${c.id}','skip')">Skip <kbd>x</kbd></button>
       ${dec?`<button onclick="undecide('${c.id}')">↩ Undo</button>`:''}
@@ -487,7 +506,12 @@ window.decide=(id,action,extra={})=>{
   el.classList.add('gone');
   setTimeout(()=>{ render(); maybeConfetti(); },280);
 };
-window.accept=(id)=>{ const c=lics.find(x=>x.id===id); decide(id,'plan',{items:c.suggestion.items}); };
+// Accept follows the RECOMMENDATION: resolve marks resolved, skip skips,
+// plan queues exactly the items previewed in the "Accepting queues" list.
+window.accept=(id)=>{ const c=lics.find(x=>x.id===id);
+  if(c.suggestion.action==='resolve') return decide(id,'resolve');
+  if(c.suggestion.action==='skip') return decide(id,'skip');
+  if(c.suggestion.items.length) decide(id,'plan',{items:c.suggestion.items}); };
 window.customPlan=(id)=>{
   const c=lics.find(x=>x.id===id);
   const boxes=[...document.querySelectorAll(`#pl-${id} input[type=checkbox]`)];
@@ -517,7 +541,7 @@ document.addEventListener('keydown',(e)=>{
   if(e.key==='j'){ focusIdx=Math.min(focusIdx+1,arr.length-1); hilite(); }
   else if(e.key==='k'){ focusIdx=Math.max(focusIdx-1,0); hilite(); }
   else if(e.key==='Enter'&&focusIdx>=0){ toggle(cur().id); }
-  else if(e.key==='a'&&focusIdx>=0){ const c=cur(); if(c.suggestion.items.length) accept(c.id); }
+  else if(e.key==='a'&&focusIdx>=0){ accept(cur().id); }
   else if(e.key==='p'&&focusIdx>=0){ toggleSub(cur().id,'plan'); }
   else if(e.key==='v'&&focusIdx>=0){ decide(cur().id,'resolve'); }
   else if(e.key==='s'&&focusIdx>=0){ snooze(cur().id,14); }
@@ -539,4 +563,5 @@ $('#officeSel').innerHTML='<option value="">All offices</option>'+offices.map(v=
   syncBadge(); render();
 })();
 render();
+}
 </script>

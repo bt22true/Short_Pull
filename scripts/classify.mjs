@@ -308,6 +308,23 @@ export function classifyLIC(licId, ctx) {
     fingerprint,
   };
   c.suggestion = suggest(c);
+  // Research overrides win: if the synopsis pass concluded something different
+  // from the deterministic classifier (e.g. "already handled — resolve"), the
+  // ACTION PLAN must follow the words, not fight them. synopsis.json entries
+  // may carry `action` ('resolve' | 'skip' | 'plan') and/or replacement `items`.
+  const syn = synopsis[licId];
+  if (syn?.action && ['resolve', 'skip', 'plan'].includes(syn.action)) {
+    c.suggestion.action = syn.action;
+    if (syn.action !== 'plan') c.suggestion.items = [];
+  }
+  if (Array.isArray(syn?.items) && syn.items.length) {
+    c.suggestion.action = 'plan';
+    c.suggestion.items = syn.items.map((i) => ({
+      kind: i.kind || 'other',
+      label: String(i.label || '').slice(0, 300),
+      expected_after: i.expected_after || { manual: true },
+    })).filter((i) => i.label);
+  }
   return c;
 }
 

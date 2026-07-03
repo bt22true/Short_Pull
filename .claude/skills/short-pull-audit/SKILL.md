@@ -35,14 +35,21 @@ Follow RUNBOOK.md (authoritative). Compressed procedure:
    follow-up SQL per LIC is encouraged (e.g. pull the exact adjustment items,
    check the order's other lines, look for the same part under a sibling LIC).
    Write `data/synopsis.json` keyed by lic_rec_id:
-   `{ "<lic_rec_id>": {"synopsis": "...", "recommended": "..."} }`
+   `{ "<lic_rec_id>": {"synopsis": "...", "recommended": "...",
+      "action": "resolve"|"skip"|"plan" (optional),
+      "items": [{"kind": "...", "label": "...", "expected_after": {...}}] (optional)} }`
    `recommended` is REQUIRED and must be ONE crisp imperative action, or 2–3
    lettered options when it's genuinely a judgment call — the board renders it
-   as the bold "→ Recommended:" line Brett acts on. For shortfall LICs consult
-   the sales-velocity fields (`sales.qty_90d`, `cover_days`) before
-   recommending a reorder-point change (see RUNBOOK "Reorder-point review" —
-   the threshold is provisional). Then re-run step 4 so the board picks the
-   synopses up.
+   as the bold "→ Recommended:" line Brett acts on.
+   **The buttons must match the words (Brett, 2026-07-03):** whenever your
+   conclusion differs from the deterministic plan, OVERRIDE it — set
+   `action: "resolve"` for "nothing to do / already handled" verdicts, or
+   supply replacement `items` when the right steps differ from the
+   classifier's. The board's "Accept" follows YOUR action, and every card
+   previews exactly what accepting queues. For shortfall LICs consult the
+   sales-velocity fields (`sales.qty_90d`, `cover_days`) before recommending a
+   reorder-point change (see RUNBOOK "Reorder-point review" — the threshold is
+   provisional). Then re-run step 4 so the board picks the synopses up.
 7. `node scripts/build-board.mjs` → publish `dist/board.html` with the Artifact
    tool (favicon 📦, stable title "Short Pull Audit Board"). Tell Brett the
    headline numbers and anything that smells systemic (one bin, one brand, one
@@ -80,8 +87,13 @@ persist in the site's `/api/decisions` store. The daily cycle:
    resolves and DROPS off the board.
 4. Research + synopses for NEW/changed LICs only (targets with
    `has_synopsis: false` or a changed bucket); carry forward the rest.
-5. Re-run classify, `node scripts/build-board.mjs && node scripts/deploy-prep.mjs`,
-   deploy via the Netlify MCP `deploy-site` (siteId above, from the repo root).
+5. **Publish fresh data — a PUT, NOT a redeploy** (Brett: redeploys cost more
+   on Netlify). Re-run classify, `node scripts/build-board.mjs`, then:
+   `curl -su "audit:$BOARD_PASSWORD" -X PUT -H "content-type: application/json" --data @dist/board-data.json https://tnw-short-pull.netlify.app/api/board`
+   Redeploy ONLY when the board code changed this run (scripts/lib/template.html
+   or netlify/** in the git diff): `node scripts/deploy-prep.mjs`, then the
+   Netlify MCP `deploy-site` (siteId above, run its command from the repo root
+   with `NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt`).
 6. **Write back pending work**: `node scripts/export-pending.mjs` →
    `curl -su "audit:$BOARD_PASSWORD" -X PUT -H "content-type: application/json" --data @dist/pending-decisions.json https://tnw-short-pull.netlify.app/api/decisions`
    — still-open items stay on Brett's "Do the work" list; consumed/verified

@@ -145,17 +145,26 @@ basic-auth password (any username; password in the site's `BOARD_PASSWORD`
 Netlify env var). Repo pieces:
 
 - `netlify/edge-functions/auth.mjs` — the password gate (whole site)
+- `netlify/functions/board.mjs` — `/api/board`: the page is a static SHELL
+  that fetches its data from here. **A daily refresh is one PUT of
+  `dist/board-data.json` — never a redeploy** (Brett: redeploys cost more).
+  Redeploy only when `scripts/lib/template.html` or `netlify/**` changed.
 - `netlify/functions/decisions.mjs` — `/api/decisions`, a Netlify-Blobs store
   where the board persists Brett's triage decisions and "do the work"
-  check-offs across devices and daily redeploys
-- `scripts/deploy-prep.mjs` — stages `dist/board.html` → `site/index.html`
+  check-offs across devices and daily refreshes
+- `scripts/deploy-prep.mjs` — stages the data-less shell → `site/index.html`
+  (code changes only)
 - `scripts/export-pending.mjs` — after merge+verify, rebuilds the store
   payload with only still-pending work (completed items drop away)
 
 Daily cycle: pull → classify → **GET /api/decisions → merge-actions →
-verify-actions → export-pending → PUT** → synopses for new LICs → rebuild →
-deploy (Netlify MCP `deploy-site`). The 6am trigger runs this in a fresh
-session; the skill has the exact commands.
+verify-actions → export-pending → PUT decisions** → synopses for new LICs →
+rebuild → **PUT dist/board-data.json to /api/board**. The 6am trigger runs
+this in a fresh session; the skill has the exact commands.
+
+The synopsis pass OVERRIDES the deterministic plan when they disagree
+(`action`/`items` in synopsis.json) — the Accept button always does exactly
+what the "Accepting queues" preview on the card says.
 
 ## Known data quirks
 

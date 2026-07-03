@@ -205,6 +205,21 @@ test('recommended action passes through from synopsis.json', () => {
   assert.equal(c.recommended, 'Relook, then count.');
 });
 
+test('synopsis override: research verdict replaces the deterministic plan', () => {
+  // "already handled" → resolve wins over the classifier's relook/count plan
+  const ctx = ctxWith({ incidents: [inc()], bins: [bin(3)] });
+  ctx.synopsis = { CODE1: { synopsis: 'Sam already counted this.', recommended: 'Nothing to do.', action: 'resolve' } };
+  const c = classifyLIC('CODE1', ctx);
+  assert.equal(c.bucket, 'phantom_inventory'); // bucket unchanged (it's the evidence)
+  assert.equal(c.suggestion.action, 'resolve');
+  assert.equal(c.suggestion.items.length, 0);
+  // replacement items force a plan with normalized defaults
+  ctx.synopsis = { CODE1: { synopsis: 's', recommended: 'r', items: [{ label: 'Ask Nic about the batch' }] } };
+  const c2 = classifyLIC('CODE1', ctx);
+  assert.equal(c2.suggestion.action, 'plan');
+  assert.deepEqual(c2.suggestion.items, [{ kind: 'other', label: 'Ask Nic about the batch', expected_after: { manual: true } }]);
+});
+
 test('on_board: window + state interplay', () => {
   // fresh LIC with only an old incident → off board
   const oldOnly = ctxWith({ incidents: [inc({ incident_at: '2026-05-10T00:00:00.000Z' })], bins: [bin(1)] });

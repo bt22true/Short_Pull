@@ -1,5 +1,9 @@
 #!/usr/bin/env node
-// Inject data/classified.json into the board template → dist/board.html
+// Build the board outputs from data/classified.json:
+//   dist/board-data.json — the slimmed payload the live site fetches from
+//     /api/board (a daily refresh is ONE PUT of this file — no redeploy)
+//   dist/board.html      — self-contained preview with the data inlined
+//     (artifact / local file:// use; NOT what gets deployed)
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -36,6 +40,7 @@ const payload = JSON.stringify(data)
   .replace(new RegExp('\\u2029', 'g'), '\\\\u2029');
 const html = tpl.replace('/*__DATA__*/null', payload);
 if (!existsSync('dist')) mkdirSync('dist', { recursive: true });
+writeFileSync('dist/board-data.json', payload);
 
 // A single bad escape in the template kills the whole inline script and the
 // board renders blank — syntax-check the built script before shipping it.
@@ -53,4 +58,5 @@ try {
 }
 
 writeFileSync('dist/board.html', html);
-console.log(`dist/board.html — ${data.totals.lics} LICs, run ${data.run_id}, ${(html.length / 1024).toFixed(0)} KB`);
+console.log(`dist/board-data.json — ${data.totals.lics} LICs, run ${data.run_id}, ${(payload.length / 1024).toFixed(0)} KB (PUT this to /api/board)`);
+console.log(`dist/board.html — inlined preview, ${(html.length / 1024).toFixed(0)} KB`);
