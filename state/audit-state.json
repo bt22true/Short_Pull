@@ -1,6 +1,126 @@
 {
   "schema_version": 1,
   "last_run": null,
-  "last_merged_plan": null,
-  "lics": {}
+  "last_merged_plan": {
+    "run_id": "2026-07-03",
+    "at": "2026-07-03T16:25:11.585Z",
+    "decisions": 5
+  },
+  "lics": {
+    "CODE54269": {
+      "li_code": "CRA2768",
+      "history": [
+        {
+          "at": "2026-07-03",
+          "run": "2026-07-03",
+          "event": "plan",
+          "note": "auto-corrected at merge time: stored decision predated this run's research pass, which superseded it (see synopsis)."
+        }
+      ],
+      "fingerprint": "4007a6e3f675",
+      "last_bucket": "stuck_transfer_suspect",
+      "incidents_seen": [
+        "SHIPLI704023"
+      ],
+      "status": "action_pending",
+      "actions": {
+        "issued_run": "2026-07-03",
+        "issued_at": "2026-07-03",
+        "items": [
+          {
+            "kind": "other",
+            "label": "Cancel or re-source the SF→OK rebalance transfer leg for CRA2768 from LL (4 on hand) since SF is confirmed empty by the 6/30 recount; do not reorder given ~720d of cover",
+            "expected_after": {
+              "manual": true
+            },
+            "verified": false
+          }
+        ]
+      }
+    },
+    "CODE219239": {
+      "li_code": "10461423",
+      "history": [
+        {
+          "at": "2026-07-03",
+          "run": "2026-07-03",
+          "event": "plan"
+        },
+        {
+          "at": "2026-07-03",
+          "event": "actions_verified"
+        }
+      ],
+      "fingerprint": "6d174f2ba252",
+      "last_bucket": "record_shortfall",
+      "incidents_seen": [
+        "SHIPLI703601"
+      ],
+      "status": "resolved",
+      "actions": {
+        "issued_run": "2026-07-03",
+        "issued_at": "2026-07-03",
+        "items": [
+          {
+            "kind": "count",
+            "label": "Cycle count 10461423 at SF and post the correction",
+            "expected_after": {
+              "new_adjustment_after": true
+            },
+            "verified": true,
+            "done": true
+          }
+        ]
+      }
+    },
+    "CODE54272": {
+      "li_code": "TL8105",
+      "history": [
+        {
+          "at": "2026-07-03",
+          "run": "2026-07-03",
+          "event": "resolve",
+          "note": "auto-corrected at merge time: stored decision predated this run's research pass, which superseded it (see synopsis)."
+        }
+      ],
+      "fingerprint": "65da7a97998f",
+      "last_bucket": "phantom_inventory",
+      "incidents_seen": [
+        "SHIPLI701685"
+      ],
+      "status": "resolved"
+    },
+    "CODE54273": {
+      "li_code": "TL1108",
+      "history": [
+        {
+          "at": "2026-07-03",
+          "run": "2026-07-03",
+          "event": "resolve"
+        }
+      ],
+      "fingerprint": "3e99225dea95",
+      "last_bucket": "record_shortfall",
+      "incidents_seen": [
+        "SHIPLI703596"
+      ],
+      "status": "resolved"
+    },
+    "CODE428771": {
+      "li_code": "TNW-APAR22-11",
+      "history": [
+        {
+          "at": "2026-07-03",
+          "run": "2026-07-03",
+          "event": "resolve"
+        }
+      ],
+      "fingerprint": "62210cc6a2a5",
+      "last_bucket": "record_shortfall",
+      "incidents_seen": [
+        "SHIPLI701752"
+      ],
+      "status": "resolved"
+    }
+  }
 }

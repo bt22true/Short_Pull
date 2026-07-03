@@ -1,0 +1,64 @@
+{
+  "decisions": [
+    {
+      "lic_rec_id": "CODE54269",
+      "li_code": "CRA2768",
+      "action": "plan",
+      "items": [
+        {
+          "kind": "other",
+          "label": "Cancel or re-source the SF→OK rebalance transfer leg for CRA2768 from LL (4 on hand) since SF is confirmed empty by the 6/30 recount; do not reorder given ~720d of cover",
+          "expected_after": {
+            "manual": true
+          }
+        }
+      ],
+      "note": "auto-corrected at merge time: stored decision predated this run's research pass, which superseded it (see synopsis)."
+    },
+    {
+      "lic_rec_id": "CODE219239",
+      "li_code": "10461423",
+      "action": "plan",
+      "items": [
+        {
+          "kind": "count",
+          "label": "Cycle count 10461423 at SF and post the correction",
+          "expected_after": {
+            "new_adjustment_after": true
+          }
+        }
+      ]
+    },
+    {
+      "lic_rec_id": "CODE54272",
+      "li_code": "TL8105",
+      "action": "resolve",
+      "items": [],
+      "note": "auto-corrected at merge time: stored decision predated this run's research pass, which superseded it (see synopsis)."
+    },
+    {
+      "lic_rec_id": "CODE54273",
+      "li_code": "TL1108",
+      "action": "resolve"
+    },
+    {
+      "lic_rec_id": "CODE428771",
+      "li_code": "TNW-APAR22-11",
+      "action": "resolve"
+    }
+  ],
+  "completed": {
+    "CODE54269": [
+      "Fix stuck transfer: edit the order, reselect the line's bin to where the part really is (LL LL-General Larkspur General Inventory), save, then set tracking to \"Waiting on Product\" (it should resolve to \"Contact Customer\")"
+    ],
+    "CODE219239": [
+      "Cycle count 10461423 at SF and post the correction"
+    ],
+    "CODE54272": [
+      "Relook: search for TL8105 around SF-General San Francisco General Inventory (SF) — check transit/clearing bins and recent builds",
+      "Cycle count TL8105 at SF and post the correction"
+    ]
+  },
+  "run_id": "2026-07-03",
+  "updated_at": "2026-07-03T15:47:01.515Z"
+}
