@@ -2,4 +2,6 @@
 data/
 # Per-run outputs are regenerated; a stale board is a trap.
 dist/
+site/
 node_modules/
+.netlify/

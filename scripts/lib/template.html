@@ -143,6 +143,7 @@
   <div class="hrow">
     <h1>📦 Short Pull Audit</h1>
     <span class="runmeta" id="runmeta"></span>
+    <span class="runmeta" id="sync"></span>
   </div>
   <div class="tiles" id="tiles"></div>
   <div class="progress"><i id="prog"></i></div>
@@ -195,17 +196,48 @@ const $ = (s)=>document.querySelector(s);
 const esc = (s)=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const money = (v)=>'$'+Math.abs(+v||0).toFixed(2);
 const d10 = (s)=>String(s||'').slice(0,10);
-// Persistence: decisions, phase, and checked-off items survive reloads on this device.
+// Persistence: decisions + check-offs live in the site's decisions store
+// (/api/decisions, Netlify Blobs) so they survive daily redeploys and work
+// across devices. localStorage is the offline fallback. Keys are per-LIC,
+// NOT per-run — a decision made yesterday still shows today.
 const LS = (()=>{ try{ localStorage.setItem('__t','1'); localStorage.removeItem('__t'); return localStorage; }
   catch(_){ const m=new Map(); return {getItem:k=>m.has(k)?m.get(k):null,setItem:(k,v)=>m.set(k,v),removeItem:k=>m.delete(k)}; }})();
-const KEY = 'short-pull-audit-'+DATA.run_id;
+const KEY = 'short-pull-audit';
 const plan = new Map();           // lic_rec_id -> decision
+let doneSet = new Set();          // `${lic_rec_id}-i${idx}` work-item check-offs
+let serverOK = null, saveTimer = null;
 let tab = 'actionable', focusIdx = -1, streak = 0;
 let phase = LS.getItem(KEY+'-phase') || 'triage';
-try { for (const d of JSON.parse(LS.getItem(KEY+'-plan')||'[]')) plan.set(d.lic_rec_id, d); } catch(_){}
-const savePlan = ()=>LS.setItem(KEY+'-plan', JSON.stringify([...plan.values()]));
-const isDone = (k)=>LS.getItem(KEY+'-done-'+k)==='1';
-window.markDone = (k,el)=>{ LS.setItem(KEY+'-done-'+k, el.checked?'1':'0'); el.closest('.xitem').classList.toggle('done', el.checked); renderFooter(); };
+
+function seed(data){
+  plan.clear(); doneSet = new Set();
+  for(const d of (data&&data.decisions)||[]) if(d&&d.lic_rec_id) plan.set(d.lic_rec_id, d);
+  for(const [lic,labels] of Object.entries((data&&data.completed)||{})){
+    const d=plan.get(lic); if(!d) continue;
+    (d.items||[]).forEach((it,i)=>{ if(labels.includes(it.label)) doneSet.add(lic+'-i'+i); });
+  }
+}
+function exportPayload(){
+  const completed={};
+  for(const d of plan.values()){
+    const labs=(d.items||[]).filter((it,i)=>doneSet.has(d.lic_rec_id+'-i'+i)).map(it=>it.label);
+    if(labs.length) completed[d.lic_rec_id]=labs;
+  }
+  return {run_id:DATA.run_id, exported_at:new Date().toISOString(), decisions:[...plan.values()], completed};
+}
+const savePlan = ()=>{
+  const payload = exportPayload();
+  LS.setItem(KEY+'-plan', JSON.stringify(payload));
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async ()=>{
+    try{ const r=await fetch('/api/decisions',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify(exportPayload())}); serverOK=r.ok; }
+    catch(_){ serverOK=false; }
+    syncBadge();
+  }, 600);
+};
+function syncBadge(){ const el=document.getElementById('sync'); if(el) el.textContent = serverOK===null?'':serverOK?'☁ synced':'⚠ offline — saved on this device only'; }
+const isDone = (k)=>doneSet.has(k);
+window.markDone = (k,el)=>{ if(el.checked) doneSet.add(k); else doneSet.delete(k); el.closest('.xitem').classList.toggle('done', el.checked); savePlan(); renderFooter(); };
 
 const ACTIONABLE = new Set(BUCKETS.map(b=>b[0]).filter(b=>b!=='self_resolved'));
 const lics = DATA.lics;
@@ -492,17 +524,19 @@ document.addEventListener('keydown',(e)=>{
   else if(e.key==='x'&&focusIdx>=0){ decide(cur().id,'skip'); }
   else if(e.key==='u'){ const last=[...plan.keys()].pop(); if(last) undecide(last); }
 });
-function exportJSON(){
-  const doneKeys={}; const ds=[...plan.values()];
-  for(const d of ds.filter(x=>x.action==='plan')){ const c=lics.find(cc=>cc.id===d.lic_rec_id); if(!c) continue;
-    for(const it of planItems(d,c)) if(isDone(d.lic_rec_id+'-'+it.key)) (doneKeys[d.lic_rec_id]=doneKeys[d.lic_rec_id]||[]).push(it.label); }
-  return JSON.stringify({run_id:DATA.run_id,exported_at:new Date().toISOString(),decisions:ds,completed:doneKeys},null,1);
-}
+function exportJSON(){ return JSON.stringify(exportPayload(),null,1); }
 function doExport(){ const j=exportJSON(); $('#exportTa').value=j; $('#exportBox').classList.add('on');
   try{ navigator.clipboard.writeText(j); }catch(_){ $('#exportTa').select(); try{document.execCommand('copy');}catch(__){} } }
 for(const id of ['q','officeSel','reasonSel','sortSel','hideSnoozed','newOnly','hideDecided']) $('#'+id).addEventListener('input',render);
 // office options
 const offices=[...new Set(lics.flatMap(c=>c.incidents.map(i=>i.office)))].filter(Boolean).sort();
 $('#officeSel').innerHTML='<option value="">All offices</option>'+offices.map(v=>`<option>${esc(v)}</option>`).join('');
+// Load persisted decisions: server first, this-device fallback.
+(async ()=>{
+  try{ const r=await fetch('/api/decisions'); if(r.ok){ seed(await r.json()); serverOK=true; } }
+  catch(_){ serverOK=false; }
+  if(!serverOK){ try{ seed(JSON.parse(LS.getItem(KEY+'-plan')||'{}')); }catch(_){} }
+  syncBadge(); render();
+})();
 render();
 </script>

@@ -1,0 +1,12 @@
+{
+  "name": "short-pull-audit",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test scripts/test/classify.test.mjs",
+    "build": "node scripts/classify.mjs && node scripts/build-board.mjs && node scripts/deploy-prep.mjs"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}

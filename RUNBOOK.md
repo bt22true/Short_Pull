@@ -138,7 +138,24 @@ that's what makes the daily cadence cheap.
 The SQL is a rolling window (60d pulled, 14d boarded) — never needs editing.
 A morning run after a normal day surfaces ~3–8 LICs: yesterday's new short
 pulls plus anything verified overnight. Everything else stays hidden as
-already-triaged. Full procedure is identical to a fresh run.
+already-triaged.
+
+The board is HOSTED at https://tnw-short-pull.netlify.app behind a shared
+basic-auth password (any username; password in the site's `BOARD_PASSWORD`
+Netlify env var). Repo pieces:
+
+- `netlify/edge-functions/auth.mjs` — the password gate (whole site)
+- `netlify/functions/decisions.mjs` — `/api/decisions`, a Netlify-Blobs store
+  where the board persists Brett's triage decisions and "do the work"
+  check-offs across devices and daily redeploys
+- `scripts/deploy-prep.mjs` — stages `dist/board.html` → `site/index.html`
+- `scripts/export-pending.mjs` — after merge+verify, rebuilds the store
+  payload with only still-pending work (completed items drop away)
+
+Daily cycle: pull → classify → **GET /api/decisions → merge-actions →
+verify-actions → export-pending → PUT** → synopses for new LICs → rebuild →
+deploy (Netlify MCP `deploy-site`). The 6am trigger runs this in a fresh
+session; the skill has the exact commands.
 
 ## Known data quirks
 

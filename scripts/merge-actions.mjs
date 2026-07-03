@@ -21,15 +21,20 @@ const queue = { fix_stuck_transfer: [], relook: [], count: [], reverse_adjustmen
 const doneLabels = plan.completed || {};
 
 for (const d of plan.decisions || []) {
-  const c = byId.get(d.lic_rec_id);
-  if (!c) { console.error(`WARNING: unknown lic_rec_id ${d.lic_rec_id} — skipped`); continue; }
-  const s = state.lics[d.lic_rec_id] || { li_code: c.li_code, history: [] };
-  s.li_code = c.li_code;
-  s.fingerprint = c.fingerprint;
-  s.last_bucket = c.bucket;
-  // Triaging a LIC acknowledges every incident currently on its card —
-  // daily runs only resurface it when NEW incidents appear.
-  s.incidents_seen = [...new Set([...(s.incidents_seen || []), ...c.incidents.map((i) => i.rec_id)])];
+  const c = byId.get(d.lic_rec_id) || null;
+  // A decision can outlive its board card (LIC aged out of the window between
+  // triage and merge). The stored decision carries everything needed — merge
+  // it into state anyway so nothing is lost; verify-actions handles the rest.
+  if (!c) console.error(`note: ${d.lic_rec_id} (${d.li_code || '?'}) not on the current board — merged from the stored decision`);
+  const s = state.lics[d.lic_rec_id] || { li_code: c?.li_code || d.li_code || d.lic_rec_id, history: [] };
+  if (c) {
+    s.li_code = c.li_code;
+    s.fingerprint = c.fingerprint;
+    s.last_bucket = c.bucket;
+    // Triaging a LIC acknowledges every incident currently on its card —
+    // daily runs only resurface it when NEW incidents appear.
+    s.incidents_seen = [...new Set([...(s.incidents_seen || []), ...c.incidents.map((i) => i.rec_id)])];
+  }
   const ev = { at: today, run: plan.run_id, event: d.action, note: d.note || undefined };
 
   switch (d.action) {
@@ -42,22 +47,22 @@ for (const d of plan.decisions || []) {
       };
       for (const i of d.items || []) {
         const bucket = queue[i.kind] ? i.kind : 'other';
-        queue[bucket].push({ li_code: c.li_code, rec_id: c.id, label: i.label,
-          done: done.has(i.label) || undefined, note: d.note || undefined, evidence: c.evidence[0] });
+        queue[bucket].push({ li_code: s.li_code, rec_id: d.lic_rec_id, label: i.label,
+          done: done.has(i.label) || undefined, note: d.note || undefined, evidence: c?.evidence[0] });
       }
       break;
     }
     case 'resolve':
       s.status = 'resolved';
-      queue.resolved.push({ li_code: c.li_code, note: d.note || '' });
+      queue.resolved.push({ li_code: s.li_code, note: d.note || '' });
       break;
     case 'snooze':
       s.status = 'snoozed'; s.snooze_until = d.snooze_until; ev.until = d.snooze_until;
-      queue.snoozed.push({ li_code: c.li_code, until: d.snooze_until });
+      queue.snoozed.push({ li_code: s.li_code, until: d.snooze_until });
       break;
     default:
       s.status = 'skipped';
-      queue.skipped.push({ li_code: c.li_code });
+      queue.skipped.push({ li_code: s.li_code });
   }
   s.history = [...(s.history || []), ev];
   state.lics[d.lic_rec_id] = s;

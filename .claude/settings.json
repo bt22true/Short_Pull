@@ -5,7 +5,12 @@
       "Bash(node scripts/classify.mjs)",
       "Bash(node scripts/build-board.mjs)",
       "Bash(node scripts/verify-actions.mjs)",
-      "Bash(node --test scripts/test/classify.test.mjs)"
+      "Bash(node --test scripts/test/classify.test.mjs)",
+      "Bash(node scripts/deploy-prep.mjs)",
+      "Bash(node scripts/export-pending.mjs)",
+      "Bash(node scripts/merge-actions.mjs *)",
+      "Bash(npx -y @netlify/mcp@latest --site-id 89d2ca43-15ab-4949-a6c1-cf006c89e381 *)",
+      "Bash(curl -su audit* https://tnw-short-pull.netlify.app/api/decisions*)"
     ]
   }
 }

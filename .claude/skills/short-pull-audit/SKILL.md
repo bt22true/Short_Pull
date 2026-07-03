@@ -62,11 +62,33 @@ Follow RUNBOOK.md (authoritative). Compressed procedure:
    next run vs what needs a manual tick, snoozes, and any systemic pattern
    worth fixing upstream (receiving procedure, bin naming, a chronic bin).
 
-## Daily mode
-Designed to run every morning on yesterday's data: same steps, unchanged SQL
-(rolling 60d pull / 14d board). State dedupes — a LIC Brett already triaged
-only resurfaces when a NEW short pull lands on it, so a daily board is
-normally just the previous day's handful of LICs.
+## Daily mode (the scheduled 6am run — this is the normal mode)
+
+The board lives at **https://tnw-short-pull.netlify.app** (Netlify site id
+`89d2ca43-15ab-4949-a6c1-cf006c89e381`, basic-auth password in the site's
+`BOARD_PASSWORD` env var — read it via the Netlify MCP `manage-env-vars`
+getAllEnvVars, never print it). Brett triages there; decisions + check-offs
+persist in the site's `/api/decisions` store. The daily cycle:
+
+1. Preflight + pull + classify as in a fresh run (SQL unchanged — rolling
+   60d pull / 14d board; state dedupes already-triaged LICs).
+2. **Consume Brett's board decisions**: fetch the store with
+   `curl -su "audit:$BOARD_PASSWORD" https://tnw-short-pull.netlify.app/api/decisions`
+   → save to `dist/action-plan-<run_id>.json` → `node scripts/merge-actions.mjs <file>`.
+3. `node scripts/verify-actions.mjs` — counts/reversals/re-ships verify from
+   fresh aAce data; checked-off manual items count as done; completed work
+   resolves and DROPS off the board.
+4. Research + synopses for NEW/changed LICs only (targets with
+   `has_synopsis: false` or a changed bucket); carry forward the rest.
+5. Re-run classify, `node scripts/build-board.mjs && node scripts/deploy-prep.mjs`,
+   deploy via the Netlify MCP `deploy-site` (siteId above, from the repo root).
+6. **Write back pending work**: `node scripts/export-pending.mjs` →
+   `curl -su "audit:$BOARD_PASSWORD" -X PUT -H "content-type: application/json" --data @dist/pending-decisions.json https://tnw-short-pull.netlify.app/api/decisions`
+   — still-open items stay on Brett's "Do the work" list; consumed/verified
+   ones disappear.
+7. Commit `state/audit-state.json` + the action-plan archive; push. Message
+   Brett ONLY if something needs his eyes (big new exposure, systemic pattern,
+   verification failures) — a quiet morning needs no message.
 
 ## Invariants
 - Live re-pull every run; boards are snapshots, stamped with `pulled_at`.
