@@ -39,6 +39,7 @@ SELECT
   s.shipment_rec_status,
   LEFT(s.shipment_title, 90)                AS shipment_title,
   s.transfer_to_office_rec_id,
+  tm.team_member_name_full                  AS picked_by,
   o.order_id,
   o.order_rec_status,
   oi.order_item_quantity,
@@ -47,6 +48,7 @@ SELECT
 FROM fm.shipping_log_items sli
 JOIN fm.shipping_log s        ON s.shipment_rec_id = sli.shipment_rec_id
 LEFT JOIN fm.office_bins ob   ON ob.office_bin_rec_id = sli.office_bin_rec_id
+LEFT JOIN fm.team_members tm  ON tm.team_member_rec_id = s.shipment_picked_by_team_member_rec_id
 LEFT JOIN fm.orders o         ON o.order_rec_id = sli.order_rec_id
 LEFT JOIN fm.order_items oi   ON oi.order_item_rec_id = sli.order_item_rec_id
 WHERE sli.shipment_item_notes ILIKE '%short pull%'

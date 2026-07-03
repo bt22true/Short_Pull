@@ -58,8 +58,16 @@
   /* detail */
   .detail{display:none;border-top:1px solid var(--line);padding:14px;background:#FDFCFA}
   .po.open .detail{display:block}
-  .cols{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:14px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   @media(max-width:900px){.cols{grid-template-columns:1fr}}
+  details.fold{background:var(--card);border:1px solid var(--line);border-radius:8px;margin-bottom:10px}
+  details.fold summary{cursor:pointer;padding:9px 12px;font-size:12.5px;color:var(--muted);list-style:none;display:flex;gap:8px;align-items:baseline}
+  details.fold summary::before{content:'▸';font-size:11px;transition:transform .15s}
+  details.fold[open] summary::before{transform:rotate(90deg)}
+  details.fold summary b{color:var(--ink)}
+  details.fold .foldbody{padding:0 12px 11px}
+  .cp{border:1px solid var(--line);background:var(--card);border-radius:5px;font-size:10.5px;padding:0 5px;color:var(--muted);vertical-align:1px;margin-left:4px;line-height:1.5}
+  .cp:hover{border-color:var(--accent);color:var(--accent)}
   .col h4{margin:0 0 7px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
   .col{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:11px;font-size:13px;min-width:0}
   .col p{margin:0 0 7px}
@@ -172,6 +180,7 @@
 <script>
 const DATA = /*__DATA__*/null;
 const BUCKETS = [
+  ['stuck_transfer_suspect','Stuck transfer','purple'],
   ['manual_add_suspect','Manual add?','crit'],
   ['receiving_error_suspect','Receiving?','warn'],
   ['phantom_inventory','Phantom stock','crit'],
@@ -181,7 +190,7 @@ const BUCKETS = [
   ['self_resolved','Self-resolved','good'],
 ];
 const BMETA = Object.fromEntries(BUCKETS.map(b=>[b[0],b]));
-const KINDICON = {relook:'🔎',count:'🔢',reverse_adjustment:'↩️',verify_receiving:'🚚',track_order:'📦',other:'📝'};
+const KINDICON = {relook:'🔎',count:'🔢',reverse_adjustment:'↩️',verify_receiving:'🚚',track_order:'📦',reorder_review:'📈',fix_stuck_transfer:'🔀',other:'📝'};
 const $ = (s)=>document.querySelector(s);
 const esc = (s)=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const money = (v)=>'$'+Math.abs(+v||0).toFixed(2);
@@ -234,6 +243,7 @@ function flagsHtml(c){
   if(c.flags.includes('transfer')) h+=`<span class="flag">🔄 transfer</span>`;
   if(c.flags.includes('multi_office')) h+=`<span class="flag">🏢 multi-office</span>`;
   if(c.flags.includes('discontinued')) h+=`<span class="flag warnf">discontinued</span>`;
+  if(c.flags.includes('reorder_review')) h+=`<span class="flag" style="border-color:var(--accent);color:var(--accent);background:var(--accent-soft)">📈 reorder point?</span>`;
   if(c.flags.includes('partially_resolved')) h+=`<span class="flag" style="color:var(--good);border-color:var(--good)">partly shipped since</span>`;
   if(c.state&&c.state.changed) h+=`<span class="flag warnf">⚡ changed</span>`;
   return h;
@@ -258,12 +268,13 @@ function reasonBadge(i){
   return parts.join(', ');
 }
 
+const firstName=(s)=>String(s||'').split(' ')[0];
 function incidentRow(i){
   const st = i.resolved_by_ship?'<span class="ok" title="order line later shipped">✓</span>'
     : i.item_status==='VOID'?'<span class="bad">✗</span>':'<span class="part">◐</span>';
-  const what = i.order?`ord ${esc(i.order.id)}${i.bike_tag?' · '+esc(i.bike_tag):''}`
+  const what = i.order?`ord ${esc(i.order.id)}${cpBtn(i.order.id)}${i.bike_tag?' · '+esc(i.bike_tag):''}`
     : i.shipment.type==='TRANSFER'?'transfer':esc(i.shipment.tnw_type||i.shipment.type||'');
-  return `<tr><td>${st}</td><td class="num">${d10(i.at)}</td><td>${esc(reasonBadge(i))}${i.attempts>1?` <span class="num" style="color:var(--muted)">(${i.attempts} tries)</span>`:''}</td><td>${what}</td><td>${esc(i.bin||i.office||'')}</td></tr>`;
+  return `<tr><td>${st}</td><td class="num">${d10(i.at)}</td><td>${esc(reasonBadge(i))}${i.attempts>1?` <span class="num" style="color:var(--muted)">(${i.attempts} tries)</span>`:''}</td><td>${what}</td><td>${esc(i.bin||i.office||'')}</td><td>${esc(firstName(i.picked_by))}</td></tr>`;
 }
 
 function binRow(b){
@@ -274,38 +285,55 @@ function adjRow(a){
   return `<tr><td class="num">${d10(a.at)}</td><td>${esc(a.type||a.rec_type||'')}${a.is_count?' 🔢':''}</td><td class="r num">${q}</td><td>${esc(a.entered_by||'')}</td></tr>`+(a.note?`<tr><td></td><td colspan="3" style="color:var(--muted);font-size:11.5px">↳ ${esc(String(a.note).slice(0,90))}</td></tr>`:'');
 }
 function poRow(l){
-  return `<tr><td class="num">PO ${esc(l.po_id)}</td><td>${esc(l.vendor||'')}</td><td class="r num">${l.received!==undefined?l.received+'/'+l.qty:l.remaining+' open'}</td><td class="num">${d10(l.eta||l.updated||l.date)}</td></tr>`;
+  return `<tr><td class="num">PO ${esc(l.po_id)}${cpBtn(l.po_id)}</td><td>${esc(l.vendor||'')}</td><td class="r num">${l.received!==undefined?l.received+'/'+l.qty:l.remaining+' open'}</td><td class="num">${d10(l.eta||l.updated||l.date)}</td></tr>`;
 }
+const cpBtn=(t)=>`<button class="cp" title="copy" onclick="event.stopPropagation();copyPlain('${esc(String(t)).replace(/'/g,'')}',this)">⧉</button>`;
+window.copyPlain=(t,btn)=>{ const done=()=>{ if(btn){const o=btn.textContent; btn.textContent='✓'; setTimeout(()=>btn.textContent=o,900);} };
+  try{ navigator.clipboard.writeText(t).then(done); }
+  catch(_){ const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(__){} ta.remove(); done(); } };
 
 function card(c,i){
   const dec = plan.get(c.id);
+  const pickers=[...new Set(c.incidents.map(x=>firstName(x.picked_by)).filter(Boolean))];
+  const sales=c.sales||{};
   return `<div class="po ${dec?'decided':''}" data-id="${c.id}" data-i="${i}">
   <div class="porow" onclick="toggle('${c.id}')">
-    <div class="poid">${esc(c.li_code)}<small>${esc(c.manufacturer||c.type)}</small></div>
+    <div class="poid">${esc(c.li_code)}${cpBtn(c.li_code)}<small>${esc(c.manufacturer||c.type)}</small></div>
     <div class="pomain">
       <div class="l1">${chipHtml(c)}<b>${esc(c.description)}</b>${flagsHtml(c)}${stateHtml(c)}${dec?`<span class="decidedTag">→ ${dec.action}</span>`:''}</div>
-      <div class="l2"><span>${c.incident_count} short pull${c.incident_count>1?'s':''} · ${esc(Object.entries(c.reasons).map(([k,v])=>v+'× '+({couldnt_find:"couldn't find",not_enough:'not enough',manual:'manual',other:'other',unspecified:'?'}[k]||k)).join(', '))}</span></div>
+      <div class="l2"><span>${c.incident_count} short pull${c.incident_count>1?'s':''} · ${esc(Object.entries(c.reasons).map(([k,v])=>v+'× '+({couldnt_find:"couldn't find",not_enough:'not enough',manual:'manual',other:'other',unspecified:'?'}[k]||k)).join(', '))}${pickers.length?' · by '+esc(pickers.join(', ')):''}</span></div>
     </div>
     <div class="poside"><div class="exp">${c.exposure.value?money(c.exposure.value):''}</div><div class="age">${c.age_days??'?'}d ago</div></div>
   </div>
   <div class="detail">
-    <div class="cols">
-      <div class="col"><h4>The short pulls</h4>
-        <div class="tblwrap"><table><tr><th></th><th>date</th><th>reason</th><th>for</th><th>bin</th></tr>${c.incidents.slice(-8).map(incidentRow).join('')}</table></div>
+    <div class="sugg" style="margin:0 0 10px"><b>${c.synopsis?'Synopsis':'Suggested: '+esc(c.suggestion.action)}</b>${c.synopsis?'':' — '+esc(c.suggestion.reason)}
+      ${c.synopsis?`<div class="synop">${esc(c.synopsis)}</div>`:''}
+      ${c.recommended?`<div class="synop" style="margin-top:8px">→ <b style="color:var(--accent)">Recommended:</b> ${esc(c.recommended)}</div>`:''}
+    </div>
+    <details class="fold"><summary><b>The short pulls</b> — ${c.incident_count} incident${c.incident_count>1?'s':''}, last ${d10(c.last_incident_at)}${pickers.length?' · '+esc(pickers.join(', ')):''}</summary>
+      <div class="foldbody">
+        <div class="tblwrap"><table><tr><th></th><th>date</th><th>reason</th><th>for</th><th>bin</th><th>by</th></tr>${c.incidents.slice(-8).map(incidentRow).join('')}</table></div>
         <p class="kv" style="margin-top:6px">✓ = that order line later shipped · unit cost <b class="num">${money(c.unit_cost)}</b> · price <b class="num">${money(c.price)}</b></p>
       </div>
-      <div class="col"><h4>Inventory picture</h4>
-        ${c.inventory.bins.length?`<div class="tblwrap"><table><tr><th>office</th><th>bin</th><th class="r">qty</th><th class="r">avail</th><th class="r">demand</th></tr>${c.inventory.bins.slice(0,7).map(binRow).join('')}</table></div>`:`<p class="kv"><b>Nothing on hand in any bin.</b></p>`}
-        ${c.adjustments.length?`<p class="kv" style="margin:8px 0 4px"><b>Adjustments (12 mo):</b></p><div class="tblwrap"><table><tr><th>date</th><th>type</th><th class="r">Δ</th><th>by</th></tr>${c.adjustments.slice(0,5).map(adjRow).join('')}</table></div>`:'<p class="kv" style="margin-top:8px">No inventory adjustments in 12 months.</p>'}
+    </details>
+    <details class="fold"><summary><b>Inventory picture</b> — ${c.inventory.on_hand} on hand across ${c.inventory.bins.length} bin${c.inventory.bins.length===1?'':'s'}${sales.qty_90d?` · sells ${sales.qty_90d}/90d`:''}</summary>
+      <div class="foldbody">
+        ${c.inventory.bins.length?`<div class="tblwrap"><table><tr><th>office</th><th>bin</th><th class="r">qty</th><th class="r">avail</th><th class="r">demand</th></tr>${c.inventory.bins.slice(0,8).map(binRow).join('')}</table></div>`:`<p class="kv"><b>Nothing on hand in any bin.</b></p>`}
+        ${sales.qty_12mo?`<p class="kv" style="margin-top:6px">Sales/usage: <b class="num">${sales.qty_90d}</b> in 90d · <b class="num">${sales.qty_12mo}</b> in 12mo${sales.cover_days!==null&&sales.cover_days!==undefined?` · on-hand ≈ <b class="num">${sales.cover_days}d</b> cover`:''}</p>`:'<p class="kv" style="margin-top:6px">No sales in 12 months.</p>'}
+      </div>
+    </details>
+    <div class="cols">
+      <div class="col"><h4>Adjustments (12 mo)</h4>
+        ${c.adjustments.length?`<div class="tblwrap"><table><tr><th>date</th><th>type</th><th class="r">Δ</th><th>by</th></tr>${c.adjustments.slice(0,5).map(adjRow).join('')}</table></div>`:'<p class="kv">No inventory adjustments in 12 months.</p>'}
       </div>
       <div class="col"><h4>Supply &amp; movement</h4>
-        ${c.supply.open.length?`<p class="kv"><b>On order:</b></p><div class="tblwrap"><table>${c.supply.open.map(l=>`<tr><td class="num">PO ${esc(l.po_id)}</td><td>${esc(l.vendor||'')}</td><td class="r num">${l.remaining}</td><td class="num">${d10(l.eta)||'no ETA'}</td></tr>`).join('')}</table></div>`:'<p class="kv">Nothing on order.</p>'}
+        ${c.supply.open.length?`<p class="kv"><b>On order (open POs):</b></p><div class="tblwrap"><table>${c.supply.open.map(l=>`<tr><td class="num">PO ${esc(l.po_id)}${cpBtn(l.po_id)}</td><td>${esc(l.vendor||'')}</td><td class="r num">${l.remaining}</td><td class="num">${d10(l.eta)||'no ETA'}</td></tr>`).join('')}</table></div>`:'<p class="kv">Nothing on order (open POs).</p>'}
+        ${(c.supply.pending||[]).length?`<p class="kv" style="margin-top:6px;color:var(--warn)">⚠ pending (not counted): ${c.supply.pending.map(l=>`PO ${esc(l.po_id)}${cpBtn(l.po_id)} ×${l.remaining}`).join(' · ')}</p>`:''}
         ${c.supply.recent.length?`<p class="kv" style="margin-top:8px"><b>Recent PO lines:</b></p><div class="tblwrap"><table><tr><th>po</th><th>vendor</th><th class="r">rcvd</th><th>touched</th></tr>${c.supply.recent.slice(0,4).map(poRow).join('')}</table></div>`:''}
         <p class="kv" style="margin-top:8px">Movement 180d: <b>${c.movement.ok_ships_180d}</b> good ships · <b>${c.movement.short_pulls_180d}</b> short pulls${c.movement.ships_after_last?` · <b class="ok">${c.movement.ships_after_last} since last incident</b>`:''}</p>
       </div>
     </div>
-    <div class="sugg"><b>${c.synopsis?'Synopsis':'Suggested: '+esc(c.suggestion.action)}</b>${c.synopsis?'':' — '+esc(c.suggestion.reason)}
-      ${c.synopsis?`<div class="synop">${esc(c.synopsis)}</div>`:''}
+    <div class="sugg"><b>Evidence</b>
       <ul class="evid">${c.evidence.map(e=>`<li>${esc(e)}</li>`).join('')}</ul>
     </div>
     <div class="actions">
@@ -350,7 +378,7 @@ function planItems(d, c){
 function executeHtml(){
   const ds=[...plan.values()];
   const byId=(id)=>lics.find(c=>c.id===id);
-  const groups={relook:[],count:[],reverse_adjustment:[],verify_receiving:[],track_order:[],other:[]};
+  const groups={fix_stuck_transfer:[],relook:[],count:[],reverse_adjustment:[],verify_receiving:[],track_order:[],reorder_review:[],other:[]};
   let total=0, done=0;
   for(const d of ds.filter(x=>x.action==='plan')){ const c=byId(d.lic_rec_id); if(!c) continue;
     for(const it of planItems(d,c)){ const k=d.lic_rec_id+'-'+it.key; total++; if(isDone(k)) done++;
@@ -360,11 +388,13 @@ function executeHtml(){
     ${g.map(({k,it,c,d})=>`<div class="xitem ${isDone(k)?'done':''}"><input type="checkbox" ${isDone(k)?'checked':''} onchange="markDone('${k}',this)"><div><label>${esc(it.label)}</label><div class="why">${esc(c.li_code)} · ${esc(c.description)}${d.note?' · '+esc(d.note):''}</div></div></div>`).join('')}</div>`; };
   const resolved=ds.filter(d=>d.action==='resolve').length, snoozes=ds.filter(d=>d.action==='snooze').length;
   return `
+  ${sec('fix_stuck_transfer','Stuck transfers to fix','Edit the order, reselect the bin to the part\\'s real location, save, set tracking to "Waiting on Product". Auto-verifies when the line ships.')}
   ${sec('relook','Relooks','Physically search — check the pull bin, transit and clearing bins, the build area, and anything received that day.')}
   ${sec('count','Cycle counts','Count and post the adjustment in aAce. The next run sees the adjustment and auto-verifies — no need to report back.')}
   ${sec('reverse_adjustment','Adjustments to review','Open the adjustment in aAce, check what it claimed vs reality, reverse or correct it.')}
   ${sec('verify_receiving','Receiving to verify','Pull the packing slip / ask the receiver. Tick off here when checked — this one does not auto-verify.')}
   ${sec('track_order','Orders to track down','Reorder, substitute, or talk to the customer. Auto-verifies when the order line ships.')}
+  ${sec('reorder_review','Reorder points to review','Sales velocity vs on-hand says we may simply not stock enough. Tick off after adjusting (or deciding not to) in aAce.')}
   ${sec('other','Other steps','Custom steps you added on the cards.')}
   ${resolved||snoozes?`<div class="xsec"><h3>✅ Resolved ${resolved} · 😴 Snoozed ${snoozes}</h3><p class="sub">Recorded in state when you hand the plan to Claude.</p></div>`:''}
   <div class="xsec"><h3>🤝 Hand off to Claude</h3>

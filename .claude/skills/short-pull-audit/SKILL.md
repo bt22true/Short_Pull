@@ -19,10 +19,11 @@ Follow RUNBOOK.md (authoritative). Compressed procedure:
    40–120, parse rate < 95%, or latest incident more than ~3 days stale →
    stop, check `hub_sync_health`, report to Brett.
 3. **Pull via a background subagent** (keeps row data out of this conversation):
-   have it run `sql/01`–`06` per the header comment in each file, saving to
+   have it run `sql/01`–`07` per the header comment in each file, saving to
    `data/short_pulls.json`, `data/lics.json`, `data/bin_balances.json`,
-   `data/adjustments.json`, `data/po_activity.json`, `data/movements.json`
-   (chunk on truncation; verbatim rows; report row counts only).
+   `data/adjustments.json`, `data/po_activity.json`, `data/movements.json`,
+   `data/sales_history.json` (chunk on truncation; verbatim rows; report row
+   counts only).
 4. `node scripts/classify.mjs` → deterministic buckets + `data/research_targets.json`.
 5. `node scripts/verify-actions.mjs` → note verified/quiet-resolved actions for the debrief.
 6. **Research + synopsis (the heart of this audit).** For EVERY target in
@@ -34,8 +35,14 @@ Follow RUNBOOK.md (authoritative). Compressed procedure:
    follow-up SQL per LIC is encouraged (e.g. pull the exact adjustment items,
    check the order's other lines, look for the same part under a sibling LIC).
    Write `data/synopsis.json` keyed by lic_rec_id:
-   `{ "<lic_rec_id>": {"synopsis": "...", "recommended": "count first — the relook already failed twice"} }`
-   Then re-run step 4 so the board picks the synopses up.
+   `{ "<lic_rec_id>": {"synopsis": "...", "recommended": "..."} }`
+   `recommended` is REQUIRED and must be ONE crisp imperative action, or 2–3
+   lettered options when it's genuinely a judgment call — the board renders it
+   as the bold "→ Recommended:" line Brett acts on. For shortfall LICs consult
+   the sales-velocity fields (`sales.qty_90d`, `cover_days`) before
+   recommending a reorder-point change (see RUNBOOK "Reorder-point review" —
+   the threshold is provisional). Then re-run step 4 so the board picks the
+   synopses up.
 7. `node scripts/build-board.mjs` → publish `dist/board.html` with the Artifact
    tool (favicon 📦, stable title "Short Pull Audit Board"). Tell Brett the
    headline numbers and anything that smells systemic (one bin, one brand, one

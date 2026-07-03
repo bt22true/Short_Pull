@@ -39,29 +39,43 @@ SHORT PULL: Couldn't Find Item
 | The incident | `shipping_log_items` + `shipping_log` header | notes ILIKE '%short pull%'; join order/order_item/bin |
 | What the system thinks is on the shelf | `inventory_bin_balances` per LIC×bin | `quantity` on hand, `available_quantity`, `demand_quantity` |
 | Manual adds / counts | `inventory_adjustment_items` + `inventory_adjustments` | `quantity` is the DELTA; `is_count` when type mentions Count; `Beg Balance` is noise |
-| What we received / have inbound | `purchase_order_items` + `purchase_orders` | received when `received_quantity > 0`; NO per-line receive date — `updated_at` is the proxy |
+| What we received / have inbound | `purchase_order_items` + `purchase_orders` | received when `received_quantity > 0`; **only OPEN POs count as inbound supply** (PENDING is often the runaway auto-reorder symptom — shown separately, never counted); NO per-line receive date — `updated_at` is the proxy |
 | What happened next | `shipping_log_items` history for the LIC | a later non-short SHIPPED line for the same `order_item_rec_id` = resolved |
 | The part | `line_item_codes` | unit_cost drives exposure; discontinued/special-order flags matter for reorders |
+| Who logged it | `shipping_log.shipment_picked_by_team_member_rec_id` → `team_members` | the picker who hit the short pull; on every incident row and card |
+| Sales velocity | `order_items` × `orders` (12 mo, monthly) | feeds the reorder-point review on shortfall LICs |
 
 ## Buckets (see `scripts/classify.mjs` for exact rules)
 
-`manual_add_suspect` · `receiving_error_suspect` · `phantom_inventory` ·
-`no_supply` · `record_shortfall` · `needs_research` · `self_resolved`.
+`stuck_transfer_suspect` · `manual_add_suspect` · `receiving_error_suspect` ·
+`phantom_inventory` · `no_supply` · `record_shortfall` · `needs_research` ·
+`self_resolved`.
 Precedence: self-resolved wins (nothing to do), then suspicion of a specific
-cause (manual add, receiving), then the state of the record (phantom / no
-supply / shortfall). Cross-cutting flags: `repeat_offender`, `order_waiting`,
+cause (stuck transfer, manual add, receiving), then the state of the record
+(phantom / no supply / shortfall). Cross-cutting flags: `repeat_offender`, `order_waiting`,
 `high_value`, `transfer`, `multi_office`, `discontinued`, `partially_resolved`.
 
 Thresholds live in `CONFIG` at the top of `scripts/classify.mjs`
 (board window 14d; adjustment-suspect window 45d; receipt-suspect 30d;
 repeat threshold 3 in 180d; quiet-resolve 45d).
 
+### Reorder-point review (PROVISIONAL — methodology being refined with Brett)
+
+A rebalance/"not enough" short pull can simply mean we don't keep enough on
+hand. Once the other hypotheses are ruled out (no suspect adjustment, no
+receiving error, not self-resolved), classify flags `reorder_review` when the
+LIC has real demand and thin cover: sold in the last 90 days AND on-hand is
+under `REORDER_COVER_DAYS` (14) days of that velocity. The card shows 90d/12mo
+sales and days-of-cover; the plan item is manual-verify. Treat the threshold
+as a conversation starter, not doctrine — Brett wants to talk through the
+determination before we harden it.
+
 ## The run, step by step
 
 1. **Preflight** — `git pull`; run `sql/99_sanity_checks.sql`; numbers wildly
    outside the expected band (see header comment) → stop, check
    `hub_sync_health`, report.
-2. **Pull** — run `sql/01`–`06` via the Postgres MCP, save to `data/*.json`
+2. **Pull** — run `sql/01`–`07` via the Postgres MCP, save to `data/*.json`
    (headers in each file say which output file; chunk if results truncate).
    Best done by a subagent so row data stays out of the main conversation.
 3. **Classify** — `node scripts/classify.mjs`, then
@@ -75,7 +89,13 @@ repeat threshold 3 in 180d; quiet-resolve 45d).
    happened, citing the specific evidence (the adjustment, the receipt, the
    bin balance, the later ship). Targeted follow-up SQL per LIC is encouraged.
    Disagree with the deterministic bucket when the evidence says so — the
-   synopsis is what Brett reads first. Re-run classify so the board embeds it.
+   synopsis is what Brett reads first. **Every entry must carry a `recommended`
+   field with ONE crisp imperative action, or 2–3 lettered options when it's
+   genuinely a judgment call** ("(a) count SF-General now, (b) wait for the
+   open PO and count on receipt") — the board renders it as the bold
+   "→ Recommended:" line. For shortfall LICs, use the sales-velocity data
+   before recommending a reorder-point change. Re-run classify so the board
+   embeds it.
 5. **Board** — `node scripts/build-board.mjs` → `dist/board.html` → publish as
    an Artifact (favicon 📦, stable title "Short Pull Audit Board"). Two-step:
    - **Step 1 · Triage** (keyboard: j/k, a accept plan, p edit plan, v resolved,
@@ -136,3 +156,12 @@ already-triaged. Full procedure is identical to a fresh run.
 ## Known patterns
 
 (Recurring root causes get recorded here as runs reveal them — the flywheel.)
+
+- **Stuck transfer / bin never flipped** (Brett, 2026-07-03, case LU2527): a
+  part ships to the other store but aAce never flips the order line's bin, so
+  the order sits "In Transfer…" pulling from the (now empty) origin bin while
+  the part sits in the destination's General bin. Signature the classifier
+  detects: unresolved incident + zero on hand at the incident office + stock at
+  the transfer destination. **Fix recipe:** edit the order, reselect the line's
+  bin to where the part actually is, save the order, set tracking status to
+  "Waiting on Product" — it then resolves to "Contact Customer".

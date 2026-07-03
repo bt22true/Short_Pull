@@ -13,6 +13,7 @@ const clip = (s, n) => (s && s.length > n ? s.slice(0, n - 1) + '…' : s);
 for (const c of data.lics) {
   c.description = clip(c.description, 110);
   c.synopsis = clip(c.synopsis, 900);
+  c.recommended = clip(c.recommended, 300);
   c.evidence = c.evidence.slice(0, 6).map((e) => clip(e, 220));
   c.incidents = c.incidents.slice(-10).map((i) => ({ ...i,
     context: undefined,

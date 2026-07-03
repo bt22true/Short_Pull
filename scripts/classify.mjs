@@ -13,6 +13,10 @@ export const CONFIG = {
   REPEAT_THRESHOLD: 3,       // short pulls in 180d that flag a repeat offender
   HIGH_VALUE: 100,           // unit cost that flags high_value
   QUIET_RESOLVE_DAYS: 45,    // pending actions auto-resolve after this much silence (verify-actions.mjs)
+  // PROVISIONAL (methodology being worked out with Brett): suggest a
+  // reorder-point review when a shortfall LIC's on-hand covers fewer than
+  // this many days of 90d sales velocity.
+  REORDER_COVER_DAYS: 14,
 };
 
 // ---- note parsing --------------------------------------------------------
@@ -55,7 +59,7 @@ const shippedOK = (m) => !m.is_short_pull
 // ---- per-LIC classification ----------------------------------------------
 export function classifyLIC(licId, ctx) {
   const { incidentsByLic, licById, binsByLic, adjByLic, poByLic, movByLic,
-          synopsis, state, today } = ctx;
+          salesByLic, synopsis, state, today } = ctx;
   const lic = licById.get(licId) || {};
   const raw = (incidentsByLic.get(licId) || [])
     .slice().sort((a, b) => new Date(a.incident_at) - new Date(b.incident_at));
@@ -81,8 +85,10 @@ export function classifyLIC(licId, ctx) {
         status: i.shipment_rec_status, title: i.shipment_title },
       order: i.order_rec_id ? { id: i.order_id, status: i.order_rec_status,
         item_rec_id: i.order_item_rec_id, item_status: i.order_item_rec_status } : null,
+      picked_by: i.picked_by || null,
       office: i.office_abbr || i.office_rec_id,
       office_rec_id: i.office_rec_id,
+      transfer_to: i.transfer_to_office_rec_id || null,
       bin: i.office_bin_name ? `${i.office_bin_abbr || ''} ${i.office_bin_name}`.trim() : null,
       resolved_by_ship: !!(shipAfter && new Date(shipAfter) > new Date(i.incident_at)),
       shipped_at: shipAfter || null,
@@ -122,15 +128,29 @@ export function classifyLIC(licId, ctx) {
       && d <= lastAt && daysBetween(d, lastAt) <= CONFIG.ADJ_SUSPECT_DAYS;
   });
 
-  // ---- supply
+  // ---- supply. Brett's rule: only OPEN POs count as real inbound supply.
+  // PENDING POs are listed separately (they're often the runaway auto-reorder
+  // symptom, not the cure).
   const poLines = (poByLic.get(licId) || []);
   const openSupply = poLines.filter((l) => num(l.quantity_remaining) > 0
-    && ['OPEN', 'PENDING'].includes(l.purchase_order_rec_status));
+    && l.purchase_order_rec_status === 'OPEN');
+  const pendingSupply = poLines.filter((l) => num(l.quantity_remaining) > 0
+    && l.purchase_order_rec_status === 'PENDING');
   const suspectReceipt = lastAt && poLines.find((l) => {
     const d = parseDate(l.line_updated);
     return d && num(l.received_quantity) > 0 && d <= lastAt
       && daysBetween(d, lastAt) <= CONFIG.RECEIPT_SUSPECT_DAYS;
   });
+
+  // ---- sales velocity (12 months of order lines, monthly buckets)
+  const salesMonths = (salesByLic.get(licId) || [])
+    .map((r) => ({ month: String(r.month).slice(0, 10), qty: num(r.qty) }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+  const cutoff90 = new Date(today); cutoff90.setDate(cutoff90.getDate() - 90);
+  const qty12mo = salesMonths.reduce((s, m) => s + m.qty, 0);
+  const qty90d = salesMonths.filter((m) => new Date(m.month) >= new Date(cutoff90.getFullYear(), cutoff90.getMonth(), 1))
+    .reduce((s, m) => s + m.qty, 0);
+  const daily90 = qty90d / 90;
 
   // ---- movement after
   const shipsAfterLast = lastAt ? okShips.filter((m) => parseDate(m.created_at) > lastAt) : [];
@@ -147,6 +167,20 @@ export function classifyLIC(licId, ctx) {
     && orderIncidents.every((i) => i.resolved_by_ship)
     && orderIncidents.length === incidents.length;
 
+  // ---- stuck transfer (Brett, 2026-07-03, case LU2527): part physically
+  // moved to the destination office but aAce never flipped the order's bin,
+  // so the pick keeps hitting the empty origin bin. Signature: unresolved
+  // incident, nothing on hand at the incident office, stock sitting at
+  // another office (the transfer destination when we know it).
+  const stuckTransfer = incidents.some((i) => {
+    if (i.resolved_by_ship) return false;
+    const elsewhere = bins.filter((b) => b.qty > 0 && b.office_rec_id !== i.office_rec_id);
+    if (!elsewhere.length) return false;
+    const officeQty = bins.filter((b) => b.office_rec_id === i.office_rec_id).reduce((s, b) => s + b.qty, 0);
+    if (officeQty > 0) return false;
+    return i.transfer_to ? elsewhere.some((b) => b.office_rec_id === i.transfer_to) : true;
+  });
+
   // ---- bucket + evidence
   const cf = reasons.couldnt_find || 0, ne = reasons.not_enough || 0;
   const ev = [];
@@ -154,6 +188,10 @@ export function classifyLIC(licId, ctx) {
   if (allResolvedByShip) {
     bucket = 'self_resolved';
     ev.push(`Every short-pulled order line later shipped successfully (last ${String(incidents.at(-1)?.shipped_at || '').slice(0, 10)}) — the part turned up.`);
+  } else if (stuckTransfer) {
+    bucket = 'stuck_transfer_suspect';
+    const elsewhere = bins.filter((b) => b.qty > 0);
+    ev.push(`Pull bin office is empty but ${elsewhere.reduce((s, b) => s + b.qty, 0)} on hand at ${[...new Set(elsewhere.map((b) => b.office))].join('/')} — looks like the part moved but aAce never flipped the order's bin (stuck "In Transfer").`);
   } else if (suspectAdj) {
     bucket = 'manual_add_suspect';
     ev.push(`Manual +${suspectAdj.qty} adjustment ${String(suspectAdj.at).slice(0, 10)} ("${suspectAdj.title || suspectAdj.type}"${suspectAdj.entered_by ? `, by ${suspectAdj.entered_by}` : ''}) within ${CONFIG.ADJ_SUSPECT_DAYS}d before the short pull — stock may have been added on paper only.`);
@@ -181,7 +219,9 @@ export function classifyLIC(licId, ctx) {
   ev.push(`${incidents.length} short pull(s) in 60d (${reasonBits}); ${shortHistory180 ? `${shortHistory180} in 180d` : 'first in 180d'}.`);
   if (onHand > 0) ev.push(`On hand now: ${onHand} across ${bins.length} bin(s) (${bins.slice(0, 4).map((b) => `${b.office} ${b.bin}: ${b.qty}`).join('; ')}).`);
   else ev.push('On hand now: 0.');
-  if (openSupply.length) ev.push(`On order: ${openSupply.map((l) => `${num(l.quantity_remaining)} on PO ${l.purchase_order_id} (${l.vendor || '?'}${l.item_eta_date ? `, ETA ${String(l.item_eta_date).slice(0, 10)}` : ''})`).join('; ')}.`);
+  if (openSupply.length) ev.push(`On order (OPEN): ${openSupply.map((l) => `${num(l.quantity_remaining)} on PO ${l.purchase_order_id} (${l.vendor || '?'}${l.item_eta_date ? `, ETA ${String(l.item_eta_date).slice(0, 10)}` : ''})`).join('; ')}.`);
+  if (pendingSupply.length) ev.push(`PENDING POs (not counted as supply): ${pendingSupply.map((l) => `${num(l.quantity_remaining)} on PO ${l.purchase_order_id} (${l.vendor || '?'})`).join('; ')}.`);
+  if (qty90d > 0) ev.push(`Sales/usage: ${qty90d} in 90d, ${qty12mo} in 12mo — on hand ${onHand} ≈ ${daily90 > 0 ? Math.round(onHand / daily90) : '∞'}d of cover.`);
   if (shipsAfterLast.length) ev.push(`${shipsAfterLast.length} successful shipment(s) of this LIC since the last short pull.`);
   if (waitingOrders.length) ev.push(`Waiting: ${waitingOrders.map((i) => `order ${i.order.id}${i.bike_tag ? ` (tag ${i.bike_tag})` : ''}`).join(', ')}.`);
 
@@ -195,6 +235,14 @@ export function classifyLIC(licId, ctx) {
   if (lic.is_discontinued) flags.push('discontinued');
   if (lic.is_special_order) flags.push('special_order');
   if (incidents.some((i) => i.resolved_by_ship) && !allResolvedByShip) flags.push('partially_resolved');
+  // PROVISIONAL reorder-point signal: real demand, thin cover, and the
+  // shortfall showed up as "not enough" or on a transfer (i.e. not a mere
+  // record error). Methodology under discussion with Brett.
+  const lowCover = qty90d > 0 && daily90 > 0 && (onHand / daily90) < CONFIG.REORDER_COVER_DAYS;
+  if (lowCover && (ne > 0 || incidents.some((i) => i.shipment.type === 'TRANSFER'))
+      && !['manual_add_suspect', 'receiving_error_suspect', 'self_resolved'].includes(bucket)) {
+    flags.push('reorder_review');
+  }
 
   const shortQty = incidents.filter((i) => !i.resolved_by_ship).reduce((s, i) => s + i.qty, 0);
   const exposure = +(shortQty * num(lic.unit_cost)).toFixed(2);
@@ -236,6 +284,8 @@ export function classifyLIC(licId, ctx) {
     supply: {
       open: openSupply.map((l) => ({ po_id: l.purchase_order_id, vendor: l.vendor,
         remaining: num(l.quantity_remaining), eta: l.item_eta_date, status: l.purchase_order_rec_status })),
+      pending: pendingSupply.map((l) => ({ po_id: l.purchase_order_id, vendor: l.vendor,
+        remaining: num(l.quantity_remaining), date: l.purchase_order_date })),
       recent: poLines.slice(0, 6).map((l) => ({ po_id: l.purchase_order_id, vendor: l.vendor,
         qty: num(l.quantity), received: num(l.received_quantity), date: l.purchase_order_date,
         updated: l.line_updated, status: l.rec_status })),
@@ -243,9 +293,12 @@ export function classifyLIC(licId, ctx) {
     movement: { ok_ships_180d: okShips.length, ships_after_last: shipsAfterLast.length,
       last_shipped_at: lastShippedAt, short_pulls_180d: shortHistory180,
       order_items_shipped: [...shippedOrderItems.keys()] },
+    sales: { qty_90d: qty90d, qty_12mo: qty12mo, daily_90d: +daily90.toFixed(3),
+      cover_days: daily90 > 0 ? Math.round(onHand / daily90) : null, months: salesMonths },
     exposure: { short_qty: shortQty, value: exposure },
-    bucket, flags, evidence: ev.slice(0, 8),
+    bucket, flags, evidence: ev.slice(0, 9),
     synopsis: synopsis[licId]?.synopsis || null,
+    recommended: synopsis[licId]?.recommended || null,
     // On the board: pending/snoozed state always shows; recent incidents show
     // unless the LIC was already triaged to rest and nothing new landed since.
     on_board: ['action_pending', 'snoozed'].includes(prior?.status || '')
@@ -254,12 +307,12 @@ export function classifyLIC(licId, ctx) {
     state: stateView, snoozed, new_incidents: newIncidents,
     fingerprint,
   };
-  c.suggestion = suggest(c, synopsis[licId]);
+  c.suggestion = suggest(c);
   return c;
 }
 
 // ---- proposed action plan --------------------------------------------------
-export function suggest(c, syn) {
+export function suggest(c) {
   const firstWaiting = c.incidents.find((i) => i.order && !i.resolved_by_ship);
   const binHint = c.incidents.at(-1)?.bin || c.inventory.bins[0]?.bin || 'its bin';
   const office = c.incidents.at(-1)?.office || '';
@@ -270,6 +323,14 @@ export function suggest(c, syn) {
 
   const s = { action: 'plan', reason: '', items: [] };
   switch (c.bucket) {
+    case 'stuck_transfer_suspect': {
+      const stock = c.inventory.bins.find((b) => b.qty > 0);
+      s.reason = 'Part looks physically moved but the order still points at the empty origin bin (aAce never flipped it).';
+      s.items = [{ kind: 'fix_stuck_transfer',
+        label: `Fix stuck transfer${firstWaiting ? ` on order ${firstWaiting.order.id}` : ''}: edit the order, reselect the line's bin to where the part really is (${stock ? `${stock.office} ${stock.bin}` : 'destination General'}), save, then set tracking to "Waiting on Product" (it should resolve to "Contact Customer")`,
+        expected_after: firstWaiting ? { order_item_shipped: firstWaiting.order.item_rec_id } : { activity_after: true } }];
+      break;
+    }
     case 'manual_add_suspect': {
       const a = c.adjustments.find((x) => x.qty > 0 && !x.is_count);
       s.reason = 'A manual inventory add preceded the short pull — verify it was real before trusting the balance.';
@@ -308,8 +369,12 @@ export function suggest(c, syn) {
       s.reason = 'Evidence is ambiguous — read the synopsis and decide.';
       s.items = [relook, count];
   }
-  if (syn?.recommended && s.action === 'plan') s.reason += ` Claude: ${syn.recommended}`;
   if (c.flags.includes('order_waiting') && !s.items.some((i) => i.kind === 'track_order') && track) s.items.push(track);
+  if (c.flags.includes('reorder_review')) {
+    s.items.push({ kind: 'reorder_review',
+      label: `Review reorder point for ${c.li_code}: sold ${c.sales.qty_90d} in 90d (${c.sales.qty_12mo}/12mo), on hand ${c.inventory.on_hand} ≈ ${c.sales.cover_days}d cover`,
+      expected_after: { manual: true } });
+  }
   return s;
 }
 
@@ -323,6 +388,7 @@ export function run(root = '.', todayStr = null) {
   const adjustments = loadJSON(D('adjustments.json'), []);
   const poActivity = loadJSON(D('po_activity.json'), []);
   const movements = loadJSON(D('movements.json'), []);
+  const sales = loadJSON(D('sales_history.json'), []);
   const synopsis = loadJSON(D('synopsis.json'), {});
   const state = loadJSON(`${root}/state/audit-state.json`, { lics: {} });
 
@@ -333,6 +399,7 @@ export function run(root = '.', todayStr = null) {
     adjByLic: groupBy(adjustments, 'li_code_rec_id'),
     poByLic: groupBy(poActivity, 'li_code_rec_id'),
     movByLic: groupBy(movements, 'li_code_rec_id'),
+    salesByLic: groupBy(sales, 'li_code_rec_id'),
     synopsis, state, today,
   };
 

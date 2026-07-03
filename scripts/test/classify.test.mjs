@@ -20,7 +20,7 @@ test('parseNotes: other / manual / empty', () => {
 
 // ---------- classification harness ----------
 const TODAY = new Date('2026-07-02');
-function ctxWith({ incidents = [], lic = {}, bins = [], adj = [], po = [], mov = [] } = {}) {
+function ctxWith({ incidents = [], lic = {}, bins = [], adj = [], po = [], mov = [], sales = [] } = {}) {
   return {
     incidentsByLic: new Map([['CODE1', incidents]]),
     licById: new Map([['CODE1', { li_code_rec_id: 'CODE1', li_code: 'ABC-1', description: 'Test Part', unit_cost: '10', price: '20', ...lic }]]),
@@ -28,6 +28,7 @@ function ctxWith({ incidents = [], lic = {}, bins = [], adj = [], po = [], mov =
     adjByLic: new Map([['CODE1', adj]]),
     poByLic: new Map([['CODE1', po]]),
     movByLic: new Map([['CODE1', mov]]),
+    salesByLic: new Map([['CODE1', sales]]),
     synopsis: {}, state: { lics: {} }, today: TODAY,
   };
 }
@@ -144,6 +145,64 @@ test('state: new incidents vs incidents_seen, snooze holds', () => {
   const c2 = classifyLIC('CODE1', ctx);
   assert.equal(c2.new_incidents.length, 1);
   assert.equal(c2.snoozed, false);
+});
+
+test('stuck_transfer_suspect: empty at incident office, stock at destination', () => {
+  const c = classifyLIC('CODE1', ctxWith({
+    incidents: [inc({ transfer_to_office_rec_id: 'OFF50002', tnw_shipment_type: 'Order Transfer' })],
+    bins: [bin(0), bin(2, { office_rec_id: 'OFF50002', office_abbr: 'LL', office_bin_abbr: 'LL-G', office_bin_name: 'Larkspur General' })],
+  }));
+  assert.equal(c.bucket, 'stuck_transfer_suspect');
+  assert.equal(c.suggestion.items[0].kind, 'fix_stuck_transfer');
+  assert.match(c.suggestion.items[0].label, /Waiting on Product/);
+  // stock at the incident office instead → NOT a stuck transfer
+  const c2 = classifyLIC('CODE1', ctxWith({
+    incidents: [inc({ transfer_to_office_rec_id: 'OFF50002' })],
+    bins: [bin(2)],
+  }));
+  assert.notEqual(c2.bucket, 'stuck_transfer_suspect');
+});
+
+test('PENDING POs are not supply: still no_supply, listed separately', () => {
+  const c = classifyLIC('CODE1', ctxWith({
+    incidents: [inc()], bins: [],
+    po: [{ li_code_rec_id: 'CODE1', purchase_order_id: 11, purchase_order_rec_status: 'PENDING',
+      purchase_order_date: '2026-07-01', vendor: 'QBP', quantity: '4', received_quantity: '0',
+      quantity_remaining: '4', rec_status: 'OPEN', line_updated: '2026-07-01' }],
+  }));
+  assert.equal(c.bucket, 'no_supply');
+  assert.equal(c.supply.open.length, 0);
+  assert.equal(c.supply.pending.length, 1);
+});
+
+test('picker name flows through to the incident', () => {
+  const c = classifyLIC('CODE1', ctxWith({ incidents: [inc({ picked_by: 'Nic Bouldin' })], bins: [bin(1)] }));
+  assert.equal(c.incidents[0].picked_by, 'Nic Bouldin');
+});
+
+test('reorder_review: thin cover + not-enough demand', () => {
+  const sales = [{ li_code_rec_id: 'CODE1', month: '2026-05-01', qty: '30' },
+    { li_code_rec_id: 'CODE1', month: '2026-06-01', qty: '30' }];
+  const c = classifyLIC('CODE1', ctxWith({
+    incidents: [inc({ shipment_item_notes: 'SHORT PULL: Not Enough On Hand' })],
+    bins: [bin(2)], sales,
+  }));
+  assert.ok(c.flags.includes('reorder_review'));
+  assert.ok(c.suggestion.items.some((i) => i.kind === 'reorder_review'));
+  assert.equal(c.sales.qty_90d, 60);
+  // plenty of cover → no flag
+  const c2 = classifyLIC('CODE1', ctxWith({
+    incidents: [inc({ shipment_item_notes: 'SHORT PULL: Not Enough On Hand' })],
+    bins: [bin(200)], sales,
+  }));
+  assert.ok(!c2.flags.includes('reorder_review'));
+});
+
+test('recommended action passes through from synopsis.json', () => {
+  const ctx = ctxWith({ incidents: [inc()], bins: [bin(1)] });
+  ctx.synopsis = { CODE1: { synopsis: 'It rolled under the bench.', recommended: 'Relook, then count.' } };
+  const c = classifyLIC('CODE1', ctx);
+  assert.equal(c.recommended, 'Relook, then count.');
 });
 
 test('on_board: window + state interplay', () => {

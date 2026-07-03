@@ -17,7 +17,7 @@ if (classified && plan.run_id !== classified.run_id)
   console.error(`WARNING: plan run_id ${plan.run_id} != current data run_id ${classified.run_id} — data may have moved; re-check decided LICs before executing.`);
 
 const today = new Date().toISOString().slice(0, 10);
-const queue = { relook: [], count: [], reverse_adjustment: [], verify_receiving: [], track_order: [], other: [], resolved: [], snoozed: [], skipped: [] };
+const queue = { fix_stuck_transfer: [], relook: [], count: [], reverse_adjustment: [], verify_receiving: [], track_order: [], reorder_review: [], other: [], resolved: [], snoozed: [], skipped: [] };
 const doneLabels = plan.completed || {};
 
 for (const d of plan.decisions || []) {
