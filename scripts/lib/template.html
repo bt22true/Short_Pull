@@ -388,7 +388,7 @@ function executeHtml(){
     ${g.map(({k,it,c,d})=>`<div class="xitem ${isDone(k)?'done':''}"><input type="checkbox" ${isDone(k)?'checked':''} onchange="markDone('${k}',this)"><div><label>${esc(it.label)}</label><div class="why">${esc(c.li_code)} · ${esc(c.description)}${d.note?' · '+esc(d.note):''}</div></div></div>`).join('')}</div>`; };
   const resolved=ds.filter(d=>d.action==='resolve').length, snoozes=ds.filter(d=>d.action==='snooze').length;
   return `
-  ${sec('fix_stuck_transfer','Stuck transfers to fix','Edit the order, reselect the bin to the part\\'s real location, save, set tracking to "Waiting on Product". Auto-verifies when the line ships.')}
+  ${sec('fix_stuck_transfer','Stuck transfers to fix','Edit the order, reselect the bin to where the part really is, save, set tracking to "Waiting on Product". Auto-verifies when the line ships.')}
   ${sec('relook','Relooks','Physically search — check the pull bin, transit and clearing bins, the build area, and anything received that day.')}
   ${sec('count','Cycle counts','Count and post the adjustment in aAce. The next run sees the adjustment and auto-verifies — no need to report back.')}
   ${sec('reverse_adjustment','Adjustments to review','Open the adjustment in aAce, check what it claimed vs reality, reverse or correct it.')}
