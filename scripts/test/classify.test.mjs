@@ -146,6 +146,25 @@ test('state: new incidents vs incidents_seen, snooze holds', () => {
   assert.equal(c2.snoozed, false);
 });
 
+test('on_board: window + state interplay', () => {
+  // fresh LIC with only an old incident → off board
+  const oldOnly = ctxWith({ incidents: [inc({ incident_at: '2026-05-10T00:00:00.000Z' })], bins: [bin(1)] });
+  assert.equal(classifyLIC('CODE1', oldOnly).on_board, false);
+  // recent incident, no state → on board
+  assert.equal(classifyLIC('CODE1', ctxWith({ incidents: [inc()], bins: [bin(1)] })).on_board, true);
+  // triaged-resolved with all incidents seen → hidden even inside the window
+  const triaged = ctxWith({ incidents: [inc()], bins: [bin(1)] });
+  triaged.state = { lics: { CODE1: { status: 'resolved', incidents_seen: ['SHIPLI1'], fingerprint: 'x' } } };
+  assert.equal(classifyLIC('CODE1', triaged).on_board, false);
+  // …but a NEW incident resurrects it
+  triaged.state.lics.CODE1.incidents_seen = [];
+  assert.equal(classifyLIC('CODE1', triaged).on_board, true);
+  // action_pending stays visible even with old incidents only
+  const pending = ctxWith({ incidents: [inc({ incident_at: '2026-05-10T00:00:00.000Z' })], bins: [bin(1)] });
+  pending.state = { lics: { CODE1: { status: 'action_pending', incidents_seen: ['SHIPLI1'], fingerprint: 'x', actions: { issued_run: '2026-06-01', items: [] } } } };
+  assert.equal(classifyLIC('CODE1', pending).on_board, true);
+});
+
 test('exposure counts only unresolved short qty', () => {
   const c = classifyLIC('CODE1', ctxWith({
     incidents: [inc(), inc({ rec_id: 'SHIPLI2', order_item_rec_id: 'ORDLI2', order_item_quantity: '2' })],

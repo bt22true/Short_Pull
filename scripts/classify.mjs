@@ -246,8 +246,11 @@ export function classifyLIC(licId, ctx) {
     exposure: { short_qty: shortQty, value: exposure },
     bucket, flags, evidence: ev.slice(0, 8),
     synopsis: synopsis[licId]?.synopsis || null,
-    on_board: boardIncidents.length > 0
-      || ['action_pending', 'snoozed'].includes(prior?.status || '') || newIncidents.length > 0,
+    // On the board: pending/snoozed state always shows; recent incidents show
+    // unless the LIC was already triaged to rest and nothing new landed since.
+    on_board: ['action_pending', 'snoozed'].includes(prior?.status || '')
+      || (boardIncidents.length > 0
+          && !(['resolved', 'skipped'].includes(prior?.status || '') && newIncidents.length === 0)),
     state: stateView, snoozed, new_incidents: newIncidents,
     fingerprint,
   };
