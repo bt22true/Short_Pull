@@ -1,6 +1,118 @@
 {
   "schema_version": 1,
   "last_run": null,
-  "last_merged_plan": null,
-  "lics": {}
+  "last_merged_plan": {
+    "run_id": "2026-07-03",
+    "at": "2026-07-06T13:08:46.215Z",
+    "decisions": 3
+  },
+  "lics": {
+    "CODE54269": {
+      "li_code": "CRA2768",
+      "history": [
+        {
+          "at": "2026-07-06",
+          "run": "2026-07-03",
+          "event": "plan"
+        },
+        {
+          "at": "2026-07-06",
+          "event": "actions_verified"
+        }
+      ],
+      "fingerprint": "4007a6e3f675",
+      "last_bucket": "stuck_transfer_suspect",
+      "incidents_seen": [
+        "SHIPLI704023"
+      ],
+      "status": "resolved",
+      "actions": {
+        "issued_run": "2026-07-03",
+        "issued_at": "2026-07-06",
+        "items": [
+          {
+            "kind": "other",
+            "label": "Cancel or re-source the SF→OK rebalance transfer leg for CRA2768 from LL (4 on hand) since SF is confirmed empty by the 6/30 recount; do not reorder given ~720d of cover",
+            "expected_after": {
+              "manual": true
+            },
+            "verified": true,
+            "done": true
+          }
+        ]
+      }
+    },
+    "CODE428639": {
+      "li_code": "LU0170",
+      "history": [
+        {
+          "at": "2026-07-06",
+          "run": "2026-07-03",
+          "event": "resolve"
+        }
+      ],
+      "fingerprint": "aa0d48074415",
+      "last_bucket": "manual_add_suspect",
+      "incidents_seen": [
+        "SHIPLI689244",
+        "SHIPLI689245",
+        "SHIPLI690197",
+        "SHIPLI691247",
+        "SHIPLI691248",
+        "SHIPLI691669",
+        "SHIPLI691670",
+        "SHIPLI691964",
+        "SHIPLI691965",
+        "SHIPLI699167",
+        "SHIPLI699168",
+        "SHIPLI701498",
+        "SHIPLI701499",
+        "SHIPLI701502",
+        "SHIPLI701503",
+        "SHIPLI702161",
+        "SHIPLI702162",
+        "SHIPLI702164",
+        "SHIPLI702165"
+      ],
+      "status": "resolved"
+    },
+    "CODE56307": {
+      "li_code": "LU2527",
+      "history": [
+        {
+          "at": "2026-07-06",
+          "run": "2026-07-03",
+          "event": "plan"
+        },
+        {
+          "at": "2026-07-06",
+          "event": "actions_verified"
+        }
+      ],
+      "fingerprint": "1db4ac35bb5d",
+      "last_bucket": "phantom_inventory",
+      "incidents_seen": [
+        "SHIPLI702573",
+        "SHIPLI703038",
+        "SHIPLI703554",
+        "SHIPLI703991"
+      ],
+      "status": "resolved",
+      "actions": {
+        "issued_run": "2026-07-03",
+        "issued_at": "2026-07-06",
+        "items": [
+          {
+            "kind": "fix_stuck_transfer",
+            "label": "Edit order X152220: reselect line ORDLI1920229's bin to LL-General Larkspur General Inventory (where the 1 on-hand unit actually is) instead of the empty SF-General bin, save, then set tracking status to \"Waiting on Product\"",
+            "expected_after": {
+              "order_item_shipped": "ORDLI1920229"
+            },
+            "verified": true,
+            "done": true
+          }
+        ]
+      }
+    }
+  }
 }
