@@ -1,6 +1,16 @@
 {
   "schema_version": 1,
-  "last_run": null,
-  "last_merged_plan": null,
+  "last_run": {
+    "run_id": "2026-08-04",
+    "at": "2026-08-04T13:29:05.504Z",
+    "mode": "daily",
+    "board_lics": 43,
+    "board_exposure": 4902.07
+  },
+  "last_merged_plan": {
+    "run_id": "2026-07-30",
+    "at": "2026-08-04T13:17:50.748Z",
+    "decisions": 0
+  },
   "lics": {}
 }
