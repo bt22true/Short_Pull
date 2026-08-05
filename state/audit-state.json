@@ -1,6 +1,10 @@
 {
   "schema_version": 1,
   "last_run": null,
-  "last_merged_plan": null,
+  "last_merged_plan": {
+    "run_id": "2026-08-04",
+    "at": "2026-08-05T13:14:06.426Z",
+    "decisions": 0
+  },
   "lics": {}
 }
