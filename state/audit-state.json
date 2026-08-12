@@ -1,6 +1,290 @@
 {
   "schema_version": 1,
   "last_run": null,
-  "last_merged_plan": null,
-  "lics": {}
+  "last_merged_plan": {
+    "run_id": "2026-08-11",
+    "at": "2026-08-12T13:18:54.682Z",
+    "decisions": 7
+  },
+  "lics": {
+    "CODE54041": {
+      "li_code": "400209",
+      "history": [
+        {
+          "at": "2026-08-12",
+          "run": "2026-08-11",
+          "event": "resolve"
+        }
+      ],
+      "fingerprint": "7a9f00b34199",
+      "last_bucket": "stuck_transfer_suspect",
+      "incidents_seen": [
+        "SHIPLI714424",
+        "SHIPLI716878",
+        "SHIPLI717267",
+        "SHIPLI717305",
+        "SHIPLI717334",
+        "SHIPLI717771"
+      ],
+      "status": "resolved"
+    },
+    "CODE428639": {
+      "li_code": "LU0170",
+      "history": [
+        {
+          "at": "2026-08-12",
+          "run": "2026-08-11",
+          "event": "resolve"
+        }
+      ],
+      "fingerprint": "edf33197643f",
+      "last_bucket": "manual_add_suspect",
+      "incidents_seen": [
+        "SHIPLI699167",
+        "SHIPLI699168",
+        "SHIPLI701498",
+        "SHIPLI701499",
+        "SHIPLI701502",
+        "SHIPLI701503",
+        "SHIPLI702161",
+        "SHIPLI702162",
+        "SHIPLI702164",
+        "SHIPLI702165",
+        "SHIPLI707699",
+        "SHIPLI707700",
+        "SHIPLI708325",
+        "SHIPLI708326",
+        "SHIPLI708765",
+        "SHIPLI708766",
+        "SHIPLI709249",
+        "SHIPLI709250",
+        "SHIPLI709252",
+        "SHIPLI709253",
+        "SHIPLI710211",
+        "SHIPLI710212",
+        "SHIPLI710214",
+        "SHIPLI710215",
+        "SHIPLI710726",
+        "SHIPLI711185",
+        "SHIPLI711188",
+        "SHIPLI711189",
+        "SHIPLI711190",
+        "SHIPLI711193",
+        "SHIPLI711194",
+        "SHIPLI711264",
+        "SHIPLI711265",
+        "SHIPLI711268",
+        "SHIPLI711269",
+        "SHIPLI711271",
+        "SHIPLI711272",
+        "SHIPLI711435",
+        "SHIPLI711436",
+        "SHIPLI712352",
+        "SHIPLI712353",
+        "SHIPLI714413",
+        "SHIPLI714414",
+        "SHIPLI714415",
+        "SHIPLI714416",
+        "SHIPLI714418",
+        "SHIPLI714419"
+      ],
+      "status": "resolved"
+    },
+    "CODE554645": {
+      "li_code": "30441-4812007",
+      "history": [
+        {
+          "at": "2026-08-12",
+          "run": "2026-08-11",
+          "event": "plan"
+        }
+      ],
+      "fingerprint": "84ad847e6b7d",
+      "last_bucket": "needs_research",
+      "incidents_seen": [
+        "SHIPLI716561",
+        "SHIPLI716891",
+        "SHIPLI717502",
+        "SHIPLI717780",
+        "SHIPLI718492"
+      ],
+      "status": "action_pending",
+      "actions": {
+        "issued_run": "2026-08-11",
+        "issued_at": "2026-08-12",
+        "items": [
+          {
+            "kind": "relook",
+            "label": "Relook SF-General for the Aventon Pace 500 battery received 8/10 on PO 113439 — shows 1 on hand reserved to X154581; pull it onto the order",
+            "expected_after": {
+              "order_item_shipped": "ORDLI1948336"
+            },
+            "verified": false
+          },
+          {
+            "kind": "track_order",
+            "label": "Confirm order X154581 (tag 154581) ships the just-received battery",
+            "expected_after": {
+              "order_item_shipped": "ORDLI1948336"
+            },
+            "verified": false
+          }
+        ]
+      }
+    },
+    "CODE550008": {
+      "li_code": "Y0450200",
+      "history": [
+        {
+          "at": "2026-08-12",
+          "run": "2026-08-11",
+          "event": "plan"
+        }
+      ],
+      "fingerprint": "ab575703c2ca",
+      "last_bucket": "phantom_inventory",
+      "incidents_seen": [
+        "SHIPLI701019",
+        "SHIPLI711317",
+        "SHIPLI715929"
+      ],
+      "status": "action_pending",
+      "actions": {
+        "issued_run": "2026-08-11",
+        "issued_at": "2026-08-12",
+        "items": [
+          {
+            "kind": "relook",
+            "label": "Relook: search for Y0450200 around SF-General San Francisco General Inventory (SF) — check transit/clearing bins and recent builds",
+            "expected_after": {
+              "activity_after": true
+            },
+            "verified": false
+          },
+          {
+            "kind": "count",
+            "label": "Cycle count Y0450200 at SF and post the correction",
+            "expected_after": {
+              "new_adjustment_after": true
+            },
+            "verified": false
+          }
+        ]
+      }
+    },
+    "CODE547637": {
+      "li_code": "12041301",
+      "history": [
+        {
+          "at": "2026-08-12",
+          "run": "2026-08-11",
+          "event": "plan"
+        }
+      ],
+      "fingerprint": "68e6c6ea2264",
+      "last_bucket": "receiving_error_suspect",
+      "incidents_seen": [
+        "SHIPLI709238",
+        "SHIPLI710197",
+        "SHIPLI713243",
+        "SHIPLI714417",
+        "SHIPLI718208"
+      ],
+      "status": "action_pending",
+      "actions": {
+        "issued_run": "2026-08-11",
+        "issued_at": "2026-08-12",
+        "items": [
+          {
+            "kind": "relook",
+            "label": "Relook LL-General for the Yepp 2 child seat (12041301) — couldn't-found 8/8 on X153934; LL shows 1 on hand",
+            "expected_after": {
+              "activity_after": true
+            },
+            "verified": false
+          },
+          {
+            "kind": "count",
+            "label": "Cycle count 12041301 at LL and post the correction",
+            "expected_after": {
+              "new_adjustment_after": true
+            },
+            "verified": false
+          }
+        ]
+      }
+    },
+    "CODE552093": {
+      "li_code": "31020-e081024-kit",
+      "history": [
+        {
+          "at": "2026-08-12",
+          "run": "2026-08-11",
+          "event": "plan"
+        }
+      ],
+      "fingerprint": "391b25ff3db7",
+      "last_bucket": "receiving_error_suspect",
+      "incidents_seen": [
+        "SHIPLI712014",
+        "SHIPLI717303",
+        "SHIPLI717769"
+      ],
+      "status": "action_pending",
+      "actions": {
+        "issued_run": "2026-08-11",
+        "issued_at": "2026-08-12",
+        "items": [
+          {
+            "kind": "track_order",
+            "label": "Track order B154859 (tag 154859) — 31020-e081024-kit is out of stock everywhere (0 on hand); expedite the Aventon reorder or substitute",
+            "expected_after": {
+              "order_item_shipped": "ORDLI1949742"
+            },
+            "verified": false
+          }
+        ]
+      }
+    },
+    "CODE554604": {
+      "li_code": "XG02",
+      "history": [
+        {
+          "at": "2026-08-12",
+          "run": "2026-08-11",
+          "event": "plan"
+        }
+      ],
+      "fingerprint": "3a4668a358c6",
+      "last_bucket": "stuck_transfer_suspect",
+      "incidents_seen": [
+        "SHIPLI717269",
+        "SHIPLI717336",
+        "SHIPLI717750"
+      ],
+      "status": "action_pending",
+      "actions": {
+        "issued_run": "2026-08-11",
+        "issued_at": "2026-08-12",
+        "items": [
+          {
+            "kind": "fix_stuck_transfer",
+            "label": "Fix stuck transfer on order S154616: edit the order, reselect the line's bin to where the part really is (SF SF-WIP San Francisco Work In Process), save, then set tracking to \"Waiting on Product\" (it should resolve to \"Contact Customer\")",
+            "expected_after": {
+              "order_item_shipped": "ORDLI1952584"
+            },
+            "verified": false
+          },
+          {
+            "kind": "track_order",
+            "label": "Track down order S154616 (tag 154616) — reorder XG02 or substitute",
+            "expected_after": {
+              "order_item_shipped": "ORDLI1952584"
+            },
+            "verified": false
+          }
+        ]
+      }
+    }
+  }
 }
