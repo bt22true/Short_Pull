@@ -1,6 +1,219 @@
 {
   "schema_version": 1,
-  "last_run": null,
-  "last_merged_plan": null,
-  "lics": {}
+  "last_run": {
+    "run_id": "2026-08-19",
+    "at": "2026-08-19T13:22:42.840Z",
+    "board_lics": 37,
+    "actionable": 24,
+    "mode": "daily"
+  },
+  "last_merged_plan": {
+    "run_id": "2026-08-13",
+    "at": "2026-08-19T13:13:09.819Z",
+    "decisions": 5
+  },
+  "lics": {
+    "CODE554645": {
+      "li_code": "30441-4812007",
+      "history": [
+        {
+          "at": "2026-08-19",
+          "run": "2026-08-13",
+          "event": "plan"
+        },
+        {
+          "at": "2026-08-19",
+          "event": "actions_verified"
+        }
+      ],
+      "fingerprint": "9c73839c6565",
+      "last_bucket": "self_resolved",
+      "incidents_seen": [
+        "SHIPLI716561",
+        "SHIPLI716891",
+        "SHIPLI717502",
+        "SHIPLI717780",
+        "SHIPLI718492",
+        "SHIPLI719332"
+      ],
+      "status": "resolved",
+      "actions": {
+        "issued_run": "2026-08-13",
+        "issued_at": "2026-08-19",
+        "items": [
+          {
+            "kind": "relook",
+            "label": "Relook SF-General for the Aventon Pace 500 battery received 8/10 on PO 113439 — shows 1 on hand reserved to X154581; pull it onto the order",
+            "expected_after": {
+              "order_item_shipped": "ORDLI1948336"
+            },
+            "verified": true
+          },
+          {
+            "kind": "track_order",
+            "label": "Confirm order X154581 (tag 154581) ships the just-received battery",
+            "expected_after": {
+              "order_item_shipped": "ORDLI1948336"
+            },
+            "verified": true
+          }
+        ]
+      }
+    },
+    "CODE550008": {
+      "li_code": "Y0450200",
+      "history": [
+        {
+          "at": "2026-08-19",
+          "run": "2026-08-13",
+          "event": "plan"
+        }
+      ],
+      "status": "action_pending",
+      "actions": {
+        "issued_run": "2026-08-13",
+        "issued_at": "2026-08-19",
+        "items": [
+          {
+            "kind": "relook",
+            "label": "Relook: search for Y0450200 around SF-General San Francisco General Inventory (SF) — check transit/clearing bins and recent builds",
+            "expected_after": {
+              "activity_after": true
+            },
+            "verified": false
+          },
+          {
+            "kind": "count",
+            "label": "Cycle count Y0450200 at SF and post the correction",
+            "expected_after": {
+              "new_adjustment_after": true
+            },
+            "verified": false
+          }
+        ]
+      }
+    },
+    "CODE547637": {
+      "li_code": "12041301",
+      "history": [
+        {
+          "at": "2026-08-19",
+          "run": "2026-08-13",
+          "event": "plan"
+        }
+      ],
+      "fingerprint": "2dd8aefbdda3",
+      "last_bucket": "receiving_error_suspect",
+      "incidents_seen": [
+        "SHIPLI709238",
+        "SHIPLI710197",
+        "SHIPLI713243",
+        "SHIPLI714417",
+        "SHIPLI718208",
+        "SHIPLI719363",
+        "SHIPLI719624",
+        "SHIPLI719689",
+        "SHIPLI720696"
+      ],
+      "status": "action_pending",
+      "actions": {
+        "issued_run": "2026-08-13",
+        "issued_at": "2026-08-19",
+        "items": [
+          {
+            "kind": "relook",
+            "label": "Relook LL-General for the Yepp 2 child seat (12041301) — couldn't-found 8/8 on X153934; LL shows 1 on hand",
+            "expected_after": {
+              "activity_after": true
+            },
+            "verified": false
+          },
+          {
+            "kind": "count",
+            "label": "Cycle count 12041301 at LL and post the correction",
+            "expected_after": {
+              "new_adjustment_after": true
+            },
+            "verified": false
+          }
+        ]
+      }
+    },
+    "CODE552093": {
+      "li_code": "31020-e081024-kit",
+      "history": [
+        {
+          "at": "2026-08-19",
+          "run": "2026-08-13",
+          "event": "plan"
+        }
+      ],
+      "fingerprint": "253fac357421",
+      "last_bucket": "receiving_error_suspect",
+      "incidents_seen": [
+        "SHIPLI712014",
+        "SHIPLI717303",
+        "SHIPLI717769"
+      ],
+      "status": "action_pending",
+      "actions": {
+        "issued_run": "2026-08-13",
+        "issued_at": "2026-08-19",
+        "items": [
+          {
+            "kind": "track_order",
+            "label": "Track order B154859 (tag 154859) — 31020-e081024-kit is out of stock everywhere (0 on hand); expedite the Aventon reorder or substitute",
+            "expected_after": {
+              "order_item_shipped": "ORDLI1949742"
+            },
+            "verified": false
+          }
+        ]
+      }
+    },
+    "CODE554604": {
+      "li_code": "XG02",
+      "history": [
+        {
+          "at": "2026-08-19",
+          "run": "2026-08-13",
+          "event": "plan"
+        },
+        {
+          "at": "2026-08-19",
+          "event": "actions_verified"
+        }
+      ],
+      "fingerprint": "d110c8ddf41c",
+      "last_bucket": "self_resolved",
+      "incidents_seen": [
+        "SHIPLI717269",
+        "SHIPLI717336",
+        "SHIPLI717750"
+      ],
+      "status": "resolved",
+      "actions": {
+        "issued_run": "2026-08-13",
+        "issued_at": "2026-08-19",
+        "items": [
+          {
+            "kind": "fix_stuck_transfer",
+            "label": "Fix stuck transfer on order S154616: edit the order, reselect the line's bin to where the part really is (SF SF-WIP San Francisco Work In Process), save, then set tracking to \"Waiting on Product\" (it should resolve to \"Contact Customer\")",
+            "expected_after": {
+              "order_item_shipped": "ORDLI1952584"
+            },
+            "verified": true
+          },
+          {
+            "kind": "track_order",
+            "label": "Track down order S154616 (tag 154616) — reorder XG02 or substitute",
+            "expected_after": {
+              "order_item_shipped": "ORDLI1952584"
+            },
+            "verified": true
+          }
+        ]
+      }
+    }
+  }
 }
