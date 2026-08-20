@@ -1,6 +1,123 @@
 {
   "schema_version": 1,
   "last_run": null,
-  "last_merged_plan": null,
-  "lics": {}
+  "last_merged_plan": {
+    "run_id": "2026-08-19",
+    "at": "2026-08-20T13:11:06.662Z",
+    "decisions": 3
+  },
+  "lics": {
+    "CODE550008": {
+      "li_code": "Y0450200",
+      "history": [
+        {
+          "at": "2026-08-20",
+          "run": "2026-08-19",
+          "event": "plan"
+        }
+      ],
+      "status": "action_pending",
+      "actions": {
+        "issued_run": "2026-08-19",
+        "issued_at": "2026-08-20",
+        "items": [
+          {
+            "kind": "relook",
+            "label": "Relook: search for Y0450200 around SF-General San Francisco General Inventory (SF) — check transit/clearing bins and recent builds",
+            "expected_after": {
+              "activity_after": true
+            },
+            "verified": false
+          },
+          {
+            "kind": "count",
+            "label": "Cycle count Y0450200 at SF and post the correction",
+            "expected_after": {
+              "new_adjustment_after": true
+            },
+            "verified": false
+          }
+        ]
+      }
+    },
+    "CODE547637": {
+      "li_code": "12041301",
+      "history": [
+        {
+          "at": "2026-08-20",
+          "run": "2026-08-19",
+          "event": "plan"
+        }
+      ],
+      "fingerprint": "43cc591e2ec1",
+      "last_bucket": "receiving_error_suspect",
+      "incidents_seen": [
+        "SHIPLI709238",
+        "SHIPLI710197",
+        "SHIPLI713243",
+        "SHIPLI714417",
+        "SHIPLI718208",
+        "SHIPLI719363",
+        "SHIPLI719624",
+        "SHIPLI719689",
+        "SHIPLI720696",
+        "SHIPLI722043"
+      ],
+      "status": "action_pending",
+      "actions": {
+        "issued_run": "2026-08-19",
+        "issued_at": "2026-08-20",
+        "items": [
+          {
+            "kind": "relook",
+            "label": "Relook LL-General for the Yepp 2 child seat (12041301) — couldn't-found 8/8 on X153934; LL shows 1 on hand",
+            "expected_after": {
+              "activity_after": true
+            },
+            "verified": false
+          },
+          {
+            "kind": "count",
+            "label": "Cycle count 12041301 at LL and post the correction",
+            "expected_after": {
+              "new_adjustment_after": true
+            },
+            "verified": false
+          }
+        ]
+      }
+    },
+    "CODE552093": {
+      "li_code": "31020-e081024-kit",
+      "history": [
+        {
+          "at": "2026-08-20",
+          "run": "2026-08-19",
+          "event": "plan"
+        }
+      ],
+      "fingerprint": "253fac357421",
+      "last_bucket": "receiving_error_suspect",
+      "incidents_seen": [
+        "SHIPLI712014",
+        "SHIPLI717303",
+        "SHIPLI717769"
+      ],
+      "status": "action_pending",
+      "actions": {
+        "issued_run": "2026-08-19",
+        "issued_at": "2026-08-20",
+        "items": [
+          {
+            "kind": "track_order",
+            "label": "Track order B154859 (tag 154859) — 31020-e081024-kit is out of stock everywhere (0 on hand); expedite the Aventon reorder or substitute",
+            "expected_after": {
+              "order_item_shipped": "ORDLI1949742"
+            },
+            "verified": false
+          }
+        ]
+      }
+    }
+  }
 }
