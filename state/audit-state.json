@@ -1,6 +1,77 @@
 {
   "schema_version": 1,
   "last_run": null,
-  "last_merged_plan": null,
-  "lics": {}
+  "last_merged_plan": {
+    "run_id": "2026-08-28",
+    "at": "2026-08-28T13:23:28.119Z",
+    "decisions": 2
+  },
+  "lics": {
+    "CODE547637": {
+      "li_code": "12041301",
+      "history": [
+        {
+          "at": "2026-08-28",
+          "run": "2026-08-28",
+          "event": "plan"
+        }
+      ],
+      "fingerprint": "9524abf0ccd6",
+      "last_bucket": "receiving_error_suspect",
+      "incidents_seen": [
+        "SHIPLI709238",
+        "SHIPLI710197",
+        "SHIPLI713243",
+        "SHIPLI714417",
+        "SHIPLI718208",
+        "SHIPLI719363",
+        "SHIPLI719624",
+        "SHIPLI719689",
+        "SHIPLI720643",
+        "SHIPLI720696",
+        "SHIPLI722043",
+        "SHIPLI722921"
+      ],
+      "status": "action_pending",
+      "actions": {
+        "issued_run": "2026-08-28",
+        "issued_at": "2026-08-28",
+        "items": [
+          {
+            "kind": "count",
+            "label": "Cycle count 12041301 at LL and post the correction",
+            "expected_after": {
+              "new_adjustment_after": true
+            },
+            "verified": false
+          }
+        ]
+      }
+    },
+    "CODE552093": {
+      "li_code": "31020-e081024-kit",
+      "history": [
+        {
+          "at": "2026-08-28",
+          "run": "2026-08-28",
+          "event": "plan"
+        }
+      ],
+      "status": "action_pending",
+      "actions": {
+        "issued_run": "2026-08-28",
+        "issued_at": "2026-08-28",
+        "items": [
+          {
+            "kind": "track_order",
+            "label": "Track order B154859 (tag 154859) — 31020-e081024-kit is out of stock everywhere (0 on hand); expedite the Aventon reorder or substitute",
+            "expected_after": {
+              "order_item_shipped": "ORDLI1949742"
+            },
+            "verified": false
+          }
+        ]
+      }
+    }
+  }
 }
