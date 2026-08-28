@@ -40,10 +40,26 @@ for (const d of plan.decisions || []) {
   switch (d.action) {
     case 'plan': {
       const done = new Set(doneLabels[d.lic_rec_id] || []);
+      // Preserve the ORIGINAL issue stamp (and per-item verified flags) when a
+      // still-pending decision is re-merged unchanged on a later daily run. The
+      // verification loop measures aAce activity AFTER the issue date, so
+      // re-stamping issued_at=today every morning would move the window past any
+      // count/re-ship Brett did since — nothing would ever auto-verify. Only a
+      // new LIC or a changed item set (re-triage) resets the clock.
+      const prior = (s.status === 'action_pending' && s.actions) ? s.actions : null;
+      const priorLabels = prior ? prior.items.map((i) => i.label).sort() : null;
+      const newLabels = (d.items || []).map((i) => i.label).sort();
+      const unchanged = prior
+        && priorLabels.length === newLabels.length
+        && priorLabels.every((l, idx) => l === newLabels[idx]);
+      const priorVerified = new Map((prior?.items || []).map((i) => [i.label, i.verified]));
       s.status = 'action_pending';
       s.actions = {
-        issued_run: plan.run_id, issued_at: today,
-        items: (d.items || []).map((i) => ({ ...i, verified: false, done: done.has(i.label) || undefined })),
+        issued_run: unchanged ? prior.issued_run : plan.run_id,
+        issued_at: unchanged ? prior.issued_at : today,
+        items: (d.items || []).map((i) => ({ ...i,
+          verified: (unchanged && priorVerified.get(i.label)) || false,
+          done: done.has(i.label) || undefined })),
       };
       for (const i of d.items || []) {
         const bucket = queue[i.kind] ? i.kind : 'other';
